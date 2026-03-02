@@ -35,23 +35,6 @@ public sealed class BlockList
         get { lock (_lock) return _ips.AsReadOnly(); }
     }
 
-    private bool _blockAzure;
-    public bool BlockAzure
-    {
-        get { lock (_lock) return _blockAzure; }
-        set
-        {
-            lock (_lock)
-            {
-                if (_blockAzure == value) return;
-                _blockAzure = value;
-                Save();
-            }
-            OnLog?.Invoke($"Block Azure: {value}");
-            OnChanged?.Invoke();
-        }
-    }
-
     private int _unblockAfterSeconds = 10;
     /// <summary>
     /// Seconds after which a blocked IP is automatically unblocked. 0 = never unblock.
@@ -158,12 +141,11 @@ public sealed class BlockList
                     {
                         _domains = data.Domains ?? new();
                         _ips = data.Ips ?? new();
-                        _blockAzure = data.BlockAzure;
                         _unblockAfterSeconds = data.UnblockAfterSeconds;
                         _blockDelaySeconds = data.BlockDelaySeconds;
                         _showNotifications = data.ShowNotifications;
                         RebuildIpRanges();
-                        OnLog?.Invoke($"Loaded {_domains.Count} domain(s) + {_ips.Count} IP rule(s) from config. BlockAzure={_blockAzure}, UnblockAfter={_unblockAfterSeconds}s");
+                        OnLog?.Invoke($"Loaded {_domains.Count} domain(s) + {_ips.Count} IP rule(s) from config. UnblockAfter={_unblockAfterSeconds}s");
                         return;
                     }
                 }
@@ -342,7 +324,7 @@ public sealed class BlockList
         // lock held by caller
         try
         {
-            var data = new BlockListData { Domains = _domains, Ips = _ips, BlockAzure = _blockAzure, UnblockAfterSeconds = _unblockAfterSeconds, BlockDelaySeconds = _blockDelaySeconds, ShowNotifications = _showNotifications };
+            var data = new BlockListData { Domains = _domains, Ips = _ips, UnblockAfterSeconds = _unblockAfterSeconds, BlockDelaySeconds = _blockDelaySeconds, ShowNotifications = _showNotifications };
             var json = JsonSerializer.Serialize(data, JsonOptions);
             File.WriteAllText(_filePath, json);
         }
@@ -376,7 +358,6 @@ public sealed class BlockList
     {
         public List<string> Domains { get; set; } = new();
         public List<string> Ips { get; set; } = new();
-        public bool BlockAzure { get; set; }
         public int UnblockAfterSeconds { get; set; } = 10;
         public int BlockDelaySeconds { get; set; } = 5;
         public bool ShowNotifications { get; set; } = true;

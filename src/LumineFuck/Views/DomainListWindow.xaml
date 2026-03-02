@@ -219,25 +219,6 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                        <TextBlock Text="Block connections from MS Azure"
-                                   FontSize="13" FontWeight="SemiBold" Foreground="#CDD6F4"/>
-                        <TextBlock Text="Blocks IPs belonging to Microsoft Azure cloud infrastructure."
-                                   FontSize="11" Foreground="#A6ADC8" TextWrapping="Wrap" Margin="0,2,0,0"/>
-                    </StackPanel>
-                    <CheckBox Grid.Column="1" IsChecked="{Binding BlockAzure}" VerticalAlignment="Center"
-                              Margin="12,0,0,0" Width="18" Height="18"/>
-                </Grid>
-            </Border>
-            <TextBlock Text="⚠️ This feature has not been thoroughly tested and may cause unexpected issues, such as blocking legitimate connections."
-                       FontSize="10" Foreground="#F9E2AF" TextWrapping="Wrap" Margin="4,0,0,8" Opacity="0.85"/>
-
-            <Border Background="#313244" CornerRadius="8" Padding="14,10" Margin="0,0,0,4">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
                         <TextBlock Text="Auto-unblock after (seconds)"
                                    FontSize="13" FontWeight="SemiBold" Foreground="#CDD6F4"/>
                         <TextBlock Text="Automatically remove firewall rule after N seconds. 0 = never unblock."

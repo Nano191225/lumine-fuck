@@ -11,7 +11,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Resources\app.ico</ApplicationIcon>
     <AssemblyName>LumineFuck</AssemblyName>
-    <Version>0.2.0</Version>
+    <Version>0.3.0</Version>
     <Company>Nano191225</Company>
     <Product>LumineFuck Firewall</Product>
     <Description>Minecraft-focused Windows firewall: blocks malicious IPs via rDNS domain matching, IP/CIDR rules, and Microsoft Azure ASN detection</Description>

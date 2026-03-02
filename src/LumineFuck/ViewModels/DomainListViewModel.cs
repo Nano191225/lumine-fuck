@@ -24,17 +24,6 @@ public partial class DomainListViewModel : ObservableObject
     public ObservableCollection<string> Domains { get; } = new();
     public ObservableCollection<string> BlockedIps { get; } = new();
 
-    public bool BlockAzure
-    {
-        get => _blockList.BlockAzure;
-        set
-        {
-            if (_blockList.BlockAzure == value) return;
-            _blockList.BlockAzure = value;
-            OnPropertyChanged();
-        }
-    }
-
     public int UnblockAfterSeconds
     {
         get => _blockList.UnblockAfterSeconds;

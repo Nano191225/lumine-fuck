@@ -18,7 +18,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private readonly FirewallManager _firewallManager;
     private readonly BlockList _blockList;
     private readonly UpdateService _updateService;
-    private readonly AzureIpRangeService _azureIpRangeService;
     private readonly Dispatcher _dispatcher;
     private CancellationTokenSource? _processingCts;
     private Task? _processingTask;
@@ -74,7 +73,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _firewallManager = new FirewallManager();
         _blockList = new BlockList();
         _updateService = new UpdateService();
-        _azureIpRangeService = new AzureIpRangeService();
 
         // Wire up logging
         _connectionMonitor.OnLog += AddLog;
@@ -82,16 +80,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _firewallManager.OnLog += AddLog;
         _blockList.OnLog += AddLog;
         _updateService.OnLog += AddLog;
-        _azureIpRangeService.OnLog += AddLog;
 
         // Load settings
         _blockList.Load();
         DomainCount = _blockList.Domains.Count + _blockList.BlockedIps.Count;
         BlockedCount = _firewallManager.BlockedCount;
-
-        // Initialize Azure IP ranges if enabled
-        if (_blockList.BlockAzure)
-            _ = _azureIpRangeService.InitializeAsync();
 
         // System tray notification icon
         try
@@ -164,15 +157,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void OpenDomainManager()
     {
-        var wasAzureEnabled = _blockList.BlockAzure;
         var window = new Views.DomainListWindow(_blockList);
         window.Owner = Application.Current.MainWindow;
         window.ShowDialog();
         DomainCount = _blockList.Domains.Count + _blockList.BlockedIps.Count;
-
-        // If Azure blocking was just enabled, initialize the range service
-        if (_blockList.BlockAzure && !wasAzureEnabled)
-            _ = _azureIpRangeService.InitializeAsync();
     }
 
     [RelayCommand]
@@ -291,23 +279,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        // 1.5. Check Azure ASN (if enabled) — async DNS lookup
-        if (_blockList.BlockAzure)
-        {
-            try
-            {
-                if (await _azureIpRangeService.IsAzureIpAsync(ip))
-                {
-                    AddLog($"🚫 Blocking {ip} — Microsoft Azure ASN");
-                    BlockAndRecord(ip, null, "Azure");
-                    return;
-                }
-            }
-            catch (Exception ex)
-            {
-                AddLog($"Azure ASN check error for {ip}: {ex.Message}");
-            }
-        }
+        // 1.5. (Azure ASN check removed)
 
         // 2. Resolve rDNS and check domain-based block list
         string? hostname;
@@ -452,7 +424,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
         StopProtection();
         _connectionMonitor.Dispose();
         _firewallManager.Dispose();
-        _azureIpRangeService.Dispose();
         _unblockTimer.Dispose();
         _processingCts?.Dispose();
         _notifyIcon?.Dispose();
