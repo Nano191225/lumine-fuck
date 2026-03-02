@@ -27,10 +27,19 @@ public sealed class DnsResolver
         _negativeCacheTtl = TimeSpan.FromMinutes(5); // Retry failed lookups sooner
         _semaphore = new SemaphoreSlim(maxConcurrency, maxConcurrency);
 
-        // Configure DnsClient for speed and reliability
-        var options = new LookupClientOptions
+        // Use well-known public DNS servers for reliable PTR resolution.
+        // System DNS (ISP) often returns incorrect/missing PTR records.
+        var nameServers = new[]
         {
-            Timeout = TimeSpan.FromSeconds(2),
+            new IPEndPoint(IPAddress.Parse("8.8.8.8"), 53),        // Google
+            new IPEndPoint(IPAddress.Parse("8.8.4.4"), 53),        // Google secondary
+            new IPEndPoint(IPAddress.Parse("1.1.1.1"), 53),        // Cloudflare
+            new IPEndPoint(IPAddress.Parse("1.0.0.1"), 53),        // Cloudflare secondary
+        };
+
+        var options = new LookupClientOptions(nameServers)
+        {
+            Timeout = TimeSpan.FromSeconds(3),
             Retries = 1,
             UseCache = true,
             CacheFailedResults = true,
@@ -39,6 +48,8 @@ public sealed class DnsResolver
             ThrowDnsErrors = false,
             ContinueOnDnsError = true,
             ContinueOnEmptyResponse = true,
+            UseRandomNameServer = true,   // Load-balance across servers
+            EnableAuditTrail = false,
         };
 
         _dnsClient = new LookupClient(options);
@@ -135,6 +146,17 @@ public sealed class DnsResolver
                 {
                     // Remove trailing dot from PTR record
                     string hostname = ptrRecords[0].PtrDomainName.Value.TrimEnd('.');
+
+                    // Ignore results that are just the in-addr.arpa query echoed back
+                    // (some DNS servers return the ARPA zone name itself as the PTR value)
+                    if (hostname.EndsWith(".in-addr.arpa", StringComparison.OrdinalIgnoreCase)
+                        || hostname.EndsWith(".ip6.arpa", StringComparison.OrdinalIgnoreCase))
+                    {
+                        CacheResult(ip, null, false);
+                        OnLog?.Invoke($"rDNS: {ip} → {hostname} (ignored, arpa echo)");
+                        return null;
+                    }
+
                     CacheResult(ip, hostname, true);
                     OnLog?.Invoke($"rDNS: {ip} → {hostname}");
                     return hostname;
@@ -188,6 +210,14 @@ public sealed class DnsResolver
     public void ClearCache()
     {
         _cache.Clear();
+    }
+
+    /// <summary>
+    /// Removes a single IP from the DNS cache so it can be re-resolved.
+    /// </summary>
+    public void RemoveFromCache(IPAddress ip)
+    {
+        _cache.TryRemove(ip, out _);
     }
 
     public IReadOnlyDictionary<IPAddress, DnsCacheEntry> GetCacheSnapshot()

@@ -35,6 +35,83 @@ public sealed class BlockList
         get { lock (_lock) return _ips.AsReadOnly(); }
     }
 
+    private bool _blockAzure;
+    public bool BlockAzure
+    {
+        get { lock (_lock) return _blockAzure; }
+        set
+        {
+            lock (_lock)
+            {
+                if (_blockAzure == value) return;
+                _blockAzure = value;
+                Save();
+            }
+            OnLog?.Invoke($"Block Azure: {value}");
+            OnChanged?.Invoke();
+        }
+    }
+
+    private int _unblockAfterSeconds = 10;
+    /// <summary>
+    /// Seconds after which a blocked IP is automatically unblocked. 0 = never unblock.
+    /// </summary>
+    public int UnblockAfterSeconds
+    {
+        get { lock (_lock) return _unblockAfterSeconds; }
+        set
+        {
+            lock (_lock)
+            {
+                if (_unblockAfterSeconds == value) return;
+                _unblockAfterSeconds = Math.Max(0, value);
+                Save();
+            }
+            OnLog?.Invoke($"Auto-unblock after: {value}s");
+            OnChanged?.Invoke();
+        }
+    }
+
+    private int _blockDelaySeconds = 5;
+    /// <summary>
+    /// Seconds to wait after detection before actually blocking. 0 = block immediately.
+    /// </summary>
+    public int BlockDelaySeconds
+    {
+        get { lock (_lock) return _blockDelaySeconds; }
+        set
+        {
+            lock (_lock)
+            {
+                if (_blockDelaySeconds == value) return;
+                _blockDelaySeconds = Math.Max(0, value);
+                Save();
+            }
+            OnLog?.Invoke($"Block delay: {value}s");
+            OnChanged?.Invoke();
+        }
+    }
+
+    private bool _showNotifications = true;
+    /// <summary>
+    /// Whether to show a desktop notification each time a connection is blocked.
+    /// </summary>
+    public bool ShowNotifications
+    {
+        get { lock (_lock) return _showNotifications; }
+        set
+        {
+            lock (_lock)
+            {
+                if (_showNotifications == value) return;
+                _showNotifications = value;
+                Save();
+            }
+            OnLog?.Invoke($"Show notifications: {value}");
+            OnChanged?.Invoke();
+        }
+    }
+
     public BlockList()
     {
         var appDataDir = Path.Combine(
@@ -81,8 +158,12 @@ public sealed class BlockList
                     {
                         _domains = data.Domains ?? new();
                         _ips = data.Ips ?? new();
+                        _blockAzure = data.BlockAzure;
+                        _unblockAfterSeconds = data.UnblockAfterSeconds;
+                        _blockDelaySeconds = data.BlockDelaySeconds;
+                        _showNotifications = data.ShowNotifications;
                         RebuildIpRanges();
-                        OnLog?.Invoke($"Loaded {_domains.Count} domain(s) + {_ips.Count} IP rule(s) from config.");
+                        OnLog?.Invoke($"Loaded {_domains.Count} domain(s) + {_ips.Count} IP rule(s) from config. BlockAzure={_blockAzure}, UnblockAfter={_unblockAfterSeconds}s");
                         return;
                     }
                 }
@@ -261,7 +342,7 @@ public sealed class BlockList
         // lock held by caller
         try
         {
-            var data = new BlockListData { Domains = _domains, Ips = _ips };
+            var data = new BlockListData { Domains = _domains, Ips = _ips, BlockAzure = _blockAzure, UnblockAfterSeconds = _unblockAfterSeconds, BlockDelaySeconds = _blockDelaySeconds, ShowNotifications = _showNotifications };
             var json = JsonSerializer.Serialize(data, JsonOptions);
             File.WriteAllText(_filePath, json);
         }
@@ -295,6 +376,10 @@ public sealed class BlockList
     {
         public List<string> Domains { get; set; } = new();
         public List<string> Ips { get; set; } = new();
+        public bool BlockAzure { get; set; }
+        public int UnblockAfterSeconds { get; set; } = 10;
+        public int BlockDelaySeconds { get; set; } = 5;
+        public bool ShowNotifications { get; set; } = true;
     }
 
     // --- IP Range helper ---

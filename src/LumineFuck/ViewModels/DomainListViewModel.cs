@@ -24,6 +24,50 @@ public partial class DomainListViewModel : ObservableObject
     public ObservableCollection<string> Domains { get; } = new();
     public ObservableCollection<string> BlockedIps { get; } = new();
 
+    public bool BlockAzure
+    {
+        get => _blockList.BlockAzure;
+        set
+        {
+            if (_blockList.BlockAzure == value) return;
+            _blockList.BlockAzure = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public int UnblockAfterSeconds
+    {
+        get => _blockList.UnblockAfterSeconds;
+        set
+        {
+            if (_blockList.UnblockAfterSeconds == value) return;
+            _blockList.UnblockAfterSeconds = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public int BlockDelaySeconds
+    {
+        get => _blockList.BlockDelaySeconds;
+        set
+        {
+            if (_blockList.BlockDelaySeconds == value) return;
+            _blockList.BlockDelaySeconds = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public bool ShowNotifications
+    {
+        get => _blockList.ShowNotifications;
+        set
+        {
+            if (_blockList.ShowNotifications == value) return;
+            _blockList.ShowNotifications = value;
+            OnPropertyChanged();
+        }
+    }
+
     public DomainListViewModel(BlockList blockList)
     {
         _blockList = blockList;

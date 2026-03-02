@@ -284,7 +284,7 @@
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0" Orientation="Horizontal">
-                    <Button Content="📝 Manage Domains"
+                    <Button Content="⚙️ Config"
                             Style="{StaticResource AccentButton}"
                             Command="{Binding OpenDomainManagerCommand}"
                             Margin="0,0,8,0"/>

@@ -158,6 +158,14 @@ public sealed class ConnectionMonitor : IDisposable
         _pidIsMinecraft.Clear();
     }
 
+    /// <summary>
+    /// Removes a single IP from the seen cache so it can be re-detected.
+    /// </summary>
+    public void RemoveFromCache(IPAddress ip)
+    {
+        _seenIps.TryRemove(ip.ToString(), out _);
+    }
+
     // ===== Process Identification =====
 
     /// <summary>

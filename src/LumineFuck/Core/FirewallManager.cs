@@ -96,6 +96,25 @@ public sealed class FirewallManager : IDisposable
         }
     }
 
+    /// <summary>
+    /// Removes a single IP from all firewall block rules.
+    /// </summary>
+    public bool UnblockIp(IPAddress ip)
+    {
+        string ipStr = ip.ToString();
+
+        lock (_lock)
+        {
+            if (!_blockedIps.Remove(ipStr))
+                return false;
+
+            UpdateAllFirewallRules();
+        }
+
+        OnLog?.Invoke($"✅ Unblocked IP: {ipStr}");
+        return true;
+    }
+
     public List<string> GetBlockedIps()
     {
         lock (_lock)
