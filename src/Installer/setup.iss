@@ -68,13 +68,13 @@ begin
   if not RegKeyExists(HKLM, NpcapKey) then
   begin
     if MsgBox('Npcap is required for UDP traffic monitoring (same driver as Wireshark).' + #13#10 +
-              'Please install Npcap from https://npcap.com before continuing.' + #13#10#13#10 +
-              'Continue installation anyway?',
-              mbConfirmation, MB_YESNO) = IDNO then
+              'Click OK to open the Npcap download page, then re-run this installer after installing Npcap.',
+              mbInformation, MB_OKCANCEL) = IDOK then
     begin
-      Result := False;
-      Exit;
+      ShellExec('open', 'https://npcap.com/#download', '', '', SW_SHOWNORMAL, ewNoWait, NpcapKey);
     end;
+    Result := False;
+    Exit;
   end;
   Result := True;
 end;
