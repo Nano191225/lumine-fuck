@@ -10,6 +10,9 @@ permissions:
 jobs:
   build:
     runs-on: windows-latest
+    env:
+      CERTIFICATE_PFX: ${{ secrets.CERTIFICATE_PFX }}
+      CERTIFICATE_PASSWORD: ${{ secrets.CERTIFICATE_PASSWORD }}
 
     steps:
       - name: Checkout
@@ -41,18 +44,13 @@ jobs:
             -o publish/
 
       - name: Decode certificate
-        if: ${{ secrets.CERTIFICATE_PFX != '' }}
-        env:
-          CERTIFICATE_PFX: ${{ secrets.CERTIFICATE_PFX }}
+        if: env.CERTIFICATE_PFX != ''
         run: |
           $certBytes = [Convert]::FromBase64String($env:CERTIFICATE_PFX)
           [IO.File]::WriteAllBytes("$env:RUNNER_TEMP\cert.pfx", $certBytes)
 
       - name: Sign executable
-        if: ${{ secrets.CERTIFICATE_PFX != '' }}
-        env:
-          CERTIFICATE_PFX: ${{ secrets.CERTIFICATE_PFX }}
-          CERTIFICATE_PASSWORD: ${{ secrets.CERTIFICATE_PASSWORD }}
+        if: env.CERTIFICATE_PFX != ''
         run: |
           $signtool = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits" -Recurse -Filter "signtool.exe" | Select-Object -First 1
           & $signtool.FullName sign /f "$env:RUNNER_TEMP\cert.pfx" /p $env:CERTIFICATE_PASSWORD /fd sha256 /tr http://timestamp.digicert.com /td sha256 publish/LumineFuck.exe
@@ -76,10 +74,7 @@ jobs:
           options: /DAppVersion=${{ steps.version.outputs.VERSION }}
 
       - name: Sign installer
-        if: ${{ secrets.CERTIFICATE_PFX != '' }}
-        env:
-          CERTIFICATE_PFX: ${{ secrets.CERTIFICATE_PFX }}
-          CERTIFICATE_PASSWORD: ${{ secrets.CERTIFICATE_PASSWORD }}
+        if: env.CERTIFICATE_PFX != ''
         run: |
           $signtool = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits" -Recurse -Filter "signtool.exe" | Select-Object -First 1
           $installers = Get-ChildItem -Path "Output" -Filter "*.exe"
