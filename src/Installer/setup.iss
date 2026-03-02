@@ -63,6 +63,7 @@ Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(
 function InitializeSetup(): Boolean;
 var
   NpcapKey: String;
+  ErrorCode: Integer;
 begin
   NpcapKey := 'SOFTWARE\Npcap';
   if not RegKeyExists(HKLM, NpcapKey) then
@@ -71,7 +72,7 @@ begin
               'Click OK to open the Npcap download page, then re-run this installer after installing Npcap.',
               mbInformation, MB_OKCANCEL) = IDOK then
     begin
-      ShellExec('open', 'https://npcap.com/#download', '', '', SW_SHOWNORMAL, ewNoWait, NpcapKey);
+      ShellExec('open', 'https://npcap.com/#download', '', '', SW_SHOWNORMAL, ewNoWait, ErrorCode);
     end;
     Result := False;
     Exit;
