@@ -90,8 +90,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            releases/LumineFuck-win-Setup.exe
-            Output/*.exe
+            releases/*.exe
             releases/*.nupkg
-            releases/RELEASES
+            releases/*.json
+            Output/*.exe
           generate_release_notes: true

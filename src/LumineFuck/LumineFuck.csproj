@@ -14,7 +14,7 @@
     <Version>0.3.0</Version>
     <Company>Nano191225</Company>
     <Product>LumineFuck Firewall</Product>
-    <Description>Minecraft-focused Windows firewall: blocks malicious IPs via rDNS domain matching, IP/CIDR rules, and Microsoft Azure ASN detection</Description>
+    <Description>Minecraft-focused Windows firewall: blocks malicious IPs via rDNS domain matching and IP/CIDR rules</Description>
   </PropertyGroup>
 
   <ItemGroup>
