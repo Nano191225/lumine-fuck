@@ -1,4 +1,7 @@
-﻿using System.Windows;
+﻿using System.Diagnostics;
+using System.Security.Principal;
+using System.Windows;
+using Microsoft.Win32;
 using Velopack;
 
 namespace LumineFuck;
@@ -17,7 +20,63 @@ public partial class App : Application
             // Not installed via Velopack (e.g. debug mode) — ignore
         }
 
+        // Require administrator privileges — re-launch with UAC elevation if needed
+        if (!IsRunningAsAdministrator())
+        {
+            try
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = Environment.ProcessPath ?? Process.GetCurrentProcess().MainModule!.FileName,
+                    UseShellExecute = true,
+                    Verb = "runas", // Triggers UAC prompt
+                    Arguments = string.Join(" ", e.Args)
+                };
+                Process.Start(psi);
+            }
+            catch
+            {
+                // User cancelled UAC prompt
+            }
+            Shutdown();
+            return;
+        }
+
+        // Check Npcap is installed (required for UDP packet capture)
+        if (!IsNpcapInstalled())
+        {
+            var result = MessageBox.Show(
+                "Npcap is required for UDP traffic monitoring (same driver as Wireshark).\n\n" +
+                "Click OK to open the Npcap download page, then restart LumineFuck after installing.\n\n" +
+                "https://npcap.com/#download",
+                "Npcap Required",
+                MessageBoxButton.OKCancel,
+                MessageBoxImage.Warning);
+
+            if (result == MessageBoxResult.OK)
+            {
+                Process.Start(new ProcessStartInfo("https://npcap.com/#download") { UseShellExecute = true });
+            }
+
+            Shutdown();
+            return;
+        }
+
         base.OnStartup(e);
+    }
+
+    private static bool IsRunningAsAdministrator()
+    {
+        using var identity = WindowsIdentity.GetCurrent();
+        var principal = new WindowsPrincipal(identity);
+        return principal.IsInRole(WindowsBuiltInRole.Administrator);
+    }
+
+    private static bool IsNpcapInstalled()
+    {
+        // Npcap registers itself under HKLM\SOFTWARE\Npcap
+        using var key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Npcap");
+        return key != null;
     }
 }
 

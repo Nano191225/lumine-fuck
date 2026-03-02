@@ -21,19 +21,22 @@
 4. All blocked IPs are consolidated into a single firewall rule for efficiency
 5. Results are cached (1-hour TTL) to avoid redundant DNS queries
 
-## Requirements
-
-- Windows 10/11 (x64)
-- .NET 8.0 Runtime (included in self-contained build)
-- Administrator privileges (required for Windows Firewall access)
-
 ## Installation
 
-### Installer
-Download the latest `LumineFuck-Setup-*.exe` from [Releases](../../releases) and run it.
+### ✅ Recommended — Installer with Auto-update (Velopack)
+Download **`LumineFuck-win-Setup.exe`** from [Releases](../../releases) and run it.
 
-### Manual
-Download `LumineFuck.exe` from [Releases](../../releases) and run as Administrator.
+This installer supports automatic in-app updates. When a new version is released, the app will notify you and apply the update with a single click.
+
+### Alternative — Standalone Installer (Inno Setup)
+Download `LumineFuck-Setup-*.exe` from [Releases](../../releases).
+
+Standard Windows installer with Start Menu / Desktop shortcuts and uninstaller. Does **not** support automatic updates.
+
+### Requirements
+- Windows 10/11 (x64)
+- [Npcap](https://npcap.com/#download) — required for UDP monitoring (the installer will prompt you if not found)
+- Administrator privileges (required for Windows Firewall access)
 
 ## Configuration
 

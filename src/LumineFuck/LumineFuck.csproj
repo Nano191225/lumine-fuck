@@ -10,8 +10,8 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Resources\app.ico</ApplicationIcon>
     <AssemblyName>LumineFuck</AssemblyName>
-    <Version>0.1.0</Version>
-    <Company>LumineFuck</Company>
+    <Version>0.1.1</Version>
+    <Company>Nano191225</Company>
     <Product>LumineFuck Firewall</Product>
     <Description>DNS-based firewall that blocks incoming connections from specific domain suffixes</Description>
   </PropertyGroup>
