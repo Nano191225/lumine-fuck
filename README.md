@@ -18,7 +18,6 @@
 ### Detection
 - **Reverse DNS Filtering** — Resolves remote IPs via PTR query using Google/Cloudflare DNS (8.8.8.8, 1.1.1.1) and blocks IPs whose hostname ends with a configured suffix (e.g. `.orangevps.com`)
 - **IP / CIDR Blocking** — Directly block specific IPs or subnets without needing rDNS (e.g. `1.2.3.4`, `10.0.0.0/24`)
-- **Azure ASN Detection** — Optionally blocks IPs belonging to Microsoft Azure by querying the ASN via [Team Cymru DNS](https://team-cymru.com/community-services/ip-asn-mapping/). Catches Azure IPs not listed in ServiceTags_Public
 - **Minecraft Process Filtering** — Only inspects traffic from Minecraft-related processes (`Minecraft.Windows`, `javaw`, `java`), ignoring all other applications
 - **UDP + TCP Monitoring** — Captures UDP traffic via [Npcap](https://npcap.com/) / SharpPcap and polls the TCP table via `GetExtendedTcpTable` P/Invoke
 
@@ -42,10 +41,7 @@ New TCP/UDP connection (Minecraft process only)
         ↓
 1. IP/CIDR match?         → YES → [Block Delay] → Block
         ↓ NO
-2. Azure ASN lookup?      → YES → [Block Delay] → Block
-   (if enabled)          (Team Cymru: <rev-ip>.origin.asn.cymru.com TXT)
-        ↓ NO
-3. rDNS PTR lookup        (Google/Cloudflare DNS)
+2. rDNS PTR lookup        (Google/Cloudflare DNS)
    Domain suffix match?  → YES → [Block Delay] → Block
         ↓ NO
    Ignored
@@ -87,7 +83,6 @@ Examples: `1.2.3.4`, `20.202.59.0/24`
 | Setting | Default | Description |
 |---------|---------|-------------|
 | Show notifications when blocked | On | Show a desktop notification each time a connection is blocked |
-| Block connections from MS Azure | Off | Block IPs in Microsoft-owned ASNs (AS8075, etc.) via Team Cymru ASN DNS lookup |
 | Auto-unblock after (seconds) | 10 | Remove firewall rule N seconds after blocking. 0 = never unblock |
 | Block delay (seconds) | 5 | Wait N seconds after detection before blocking. 0 = block immediately |
 
@@ -116,7 +111,6 @@ dotnet publish src/LumineFuck/LumineFuck.csproj -c Release -r win-x64 --self-con
 | UDP monitoring | SharpPcap 6.3 + Npcap |
 | PID resolution | `GetExtendedUdpTable` P/Invoke |
 | rDNS | DnsClient.NET — PTR queries via Google/Cloudflare DNS |
-| ASN lookup | Team Cymru DNS (`origin.asn.cymru.com`) |
 | Firewall | Windows Firewall COM API (`HNetCfg.FwPolicy2`) |
 | Auto-update | Velopack (GitHub Releases) |
 | Installer | Inno Setup 6 |

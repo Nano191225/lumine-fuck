@@ -279,8 +279,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        // 1.5. (Azure ASN check removed)
-
         // 2. Resolve rDNS and check domain-based block list
         string? hostname;
         try

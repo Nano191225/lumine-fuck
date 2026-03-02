@@ -19,7 +19,6 @@
 
 - **リバース DNS フィルタリング** — Google/Cloudflare DNS（8.8.8.8、1.1.1.1）を使って接続元 IP を PTR クエリで解決し、ホスト名が設定済みサフィックス（例: `.orangevps.com`）で終わる IP をブロック
 - **IP / CIDR 直接ブロック** — rDNS 不要で特定の IP やサブネットを直接ブロック（例: `1.2.3.4`、`10.0.0.0/24`）
-- **Azure ASN 検出** — [Team Cymru DNS](https://team-cymru.com/community-services/ip-asn-mapping/) を使って ASN をクエリし、Microsoft Azure に属する IP をオプションでブロック。ServiceTags_Public に載っていない Azure IP も検出可能
 - **Minecraft プロセス限定** — `Minecraft.Windows`・`javaw`・`java` などの Minecraft 関連プロセスのトラフィックのみを監視し、他のアプリには影響しない
 - **UDP + TCP 監視** — [Npcap](https://npcap.com/) / SharpPcap による UDP パケットキャプチャと、`GetExtendedTcpTable` P/Invoke による TCP テーブルポーリング
 
@@ -45,10 +44,7 @@
         ↓
 1. IP/CIDR に一致？        → YES → [ブロック遅延] → ブロック
         ↓ NO
-2. Azure ASN ルックアップ？ → YES → [ブロック遅延] → ブロック
-  （有効時のみ）           （Team Cymru: <逆引きIP>.origin.asn.cymru.com TXT）
-        ↓ NO
-3. rDNS PTR ルックアップ   （Google/Cloudflare DNS）
+2. rDNS PTR ルックアップ   （Google/Cloudflare DNS）
    ドメインサフィックス一致？ → YES → [ブロック遅延] → ブロック
         ↓ NO
    無視
@@ -94,7 +90,6 @@ rDNS 不要で特定の IP やサブネットを直接ブロックします。
 | 設定項目 | デフォルト | 説明 |
 |---------|-----------|------|
 | ブロック時に通知を表示 | ON | 接続がブロックされるたびにデスクトップ通知を表示 |
-| MS Azure からの接続をブロック | OFF | Team Cymru ASN DNS ルックアップで Microsoft 所有 ASN（AS8075 等）の IP をブロック |
 | 自動解除まで（秒） | 10 | N 秒後にファイアウォールルールを削除。0 = 自動解除しない |
 | ブロック遅延（秒） | 5 | 検出後 N 秒待ってからブロック。0 = 即時ブロック |
 
@@ -123,7 +118,6 @@ dotnet publish src/LumineFuck/LumineFuck.csproj -c Release -r win-x64 --self-con
 | UDP 監視 | SharpPcap 6.3 + Npcap |
 | PID 解決 | `GetExtendedUdpTable` P/Invoke |
 | rDNS | DnsClient.NET — Google/Cloudflare DNS 経由 PTR クエリ |
-| ASN ルックアップ | Team Cymru DNS (`origin.asn.cymru.com`) |
 | ファイアウォール | Windows Firewall COM API (`HNetCfg.FwPolicy2`) |
 | 自動更新 | Velopack（GitHub Releases） |
 | インストーラー | Inno Setup 6 |
