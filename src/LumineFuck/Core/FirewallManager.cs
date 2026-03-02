@@ -1,0 +1,211 @@
+using System.Net;
+
+namespace LumineFuck.Core;
+
+/// <summary>
+/// Manages Windows Firewall block rules via dynamic COM (HNetCfg.FwPolicy2).
+/// Creates 4 rules per block set: TCP In, TCP Out, UDP In, UDP Out.
+/// </summary>
+public sealed class FirewallManager : IDisposable
+{
+    private const string RulePrefix = "LumineFW_Block";
+    private const string RuleGroupName = "LumineFuck Firewall";
+
+    // Rule name suffixes
+    private const string RuleTcpIn = RulePrefix + "_TCP_IN";
+    private const string RuleTcpOut = RulePrefix + "_TCP_OUT";
+    private const string RuleUdpIn = RulePrefix + "_UDP_IN";
+    private const string RuleUdpOut = RulePrefix + "_UDP_OUT";
+
+    // COM constants
+    private const int NET_FW_ACTION_BLOCK = 0;
+    private const int NET_FW_RULE_DIR_IN = 1;
+    private const int NET_FW_RULE_DIR_OUT = 2;
+    private const int NET_FW_IP_PROTOCOL_TCP = 6;
+    private const int NET_FW_IP_PROTOCOL_UDP = 17;
+
+    private readonly dynamic _policy;
+    private readonly HashSet<string> _blockedIps = new();
+    private readonly object _lock = new();
+
+    public event Action<string>? OnLog;
+
+    public int BlockedCount
+    {
+        get { lock (_lock) return _blockedIps.Count; }
+    }
+
+    public FirewallManager()
+    {
+        var policyType = Type.GetTypeFromProgID("HNetCfg.FwPolicy2")
+            ?? throw new InvalidOperationException("Cannot access Windows Firewall COM interface. Is Windows Firewall service running?");
+        _policy = Activator.CreateInstance(policyType)
+            ?? throw new InvalidOperationException("Failed to create FwPolicy2 instance.");
+
+        LoadExistingRules();
+    }
+
+    /// <summary>
+    /// Adds an IP address to all firewall block rules (TCP/UDP, In/Out).
+    /// </summary>
+    public bool BlockIp(IPAddress ip)
+    {
+        string ipStr = ip.ToString();
+
+        lock (_lock)
+        {
+            if (!_blockedIps.Add(ipStr))
+                return false;
+
+            UpdateAllFirewallRules();
+        }
+
+        OnLog?.Invoke($"🚫 Blocked IP: {ipStr}");
+        return true;
+    }
+
+    /// <summary>
+    /// Removes all LumineFW block rules from Windows Firewall.
+    /// </summary>
+    public void UnblockAll()
+    {
+        lock (_lock)
+        {
+            try
+            {
+                var rules = _policy.Rules;
+                var toRemove = new List<string>();
+
+                foreach (dynamic rule in rules)
+                {
+                    string? name = rule.Name;
+                    if (name?.StartsWith(RulePrefix) == true)
+                        toRemove.Add(name);
+                }
+
+                foreach (var name in toRemove)
+                    rules.Remove(name);
+
+                _blockedIps.Clear();
+                OnLog?.Invoke($"Removed {toRemove.Count} firewall rule(s).");
+            }
+            catch (Exception ex)
+            {
+                OnLog?.Invoke($"Error removing rules: {ex.Message}");
+            }
+        }
+    }
+
+    public List<string> GetBlockedIps()
+    {
+        lock (_lock)
+            return [.. _blockedIps];
+    }
+
+    private void UpdateAllFirewallRules()
+    {
+        if (_blockedIps.Count == 0)
+        {
+            RemoveAllRules();
+            return;
+        }
+
+        string remoteAddresses = string.Join(",", _blockedIps.Select(ip => $"{ip}/255.255.255.255"));
+
+        // Create/update 4 rules: TCP In, TCP Out, UDP In, UDP Out
+        UpdateOrCreateRule(RuleTcpIn, NET_FW_IP_PROTOCOL_TCP, NET_FW_RULE_DIR_IN, remoteAddresses);
+        UpdateOrCreateRule(RuleTcpOut, NET_FW_IP_PROTOCOL_TCP, NET_FW_RULE_DIR_OUT, remoteAddresses);
+        UpdateOrCreateRule(RuleUdpIn, NET_FW_IP_PROTOCOL_UDP, NET_FW_RULE_DIR_IN, remoteAddresses);
+        UpdateOrCreateRule(RuleUdpOut, NET_FW_IP_PROTOCOL_UDP, NET_FW_RULE_DIR_OUT, remoteAddresses);
+    }
+
+    private void UpdateOrCreateRule(string ruleName, int protocol, int direction, string remoteAddresses)
+    {
+        try
+        {
+            var rules = _policy.Rules;
+            dynamic? existingRule = null;
+
+            try
+            {
+                existingRule = rules.Item(ruleName);
+            }
+            catch { /* Rule doesn't exist yet */ }
+
+            if (existingRule != null)
+            {
+                existingRule.RemoteAddresses = remoteAddresses;
+                existingRule.Enabled = true;
+            }
+            else
+            {
+                var ruleType = Type.GetTypeFromProgID("HNetCfg.FWRule")
+                    ?? throw new InvalidOperationException("Cannot create firewall rule COM object.");
+                dynamic rule = Activator.CreateInstance(ruleType)
+                    ?? throw new InvalidOperationException("Failed to create FWRule instance.");
+
+                string protoName = protocol == NET_FW_IP_PROTOCOL_TCP ? "TCP" : "UDP";
+                string dirName = direction == NET_FW_RULE_DIR_IN ? "Inbound" : "Outbound";
+
+                rule.Name = ruleName;
+                rule.Description = $"Auto-generated by LumineFuck Firewall — {protoName} {dirName} block for rDNS-matched IPs.";
+                rule.Grouping = RuleGroupName;
+                rule.Action = NET_FW_ACTION_BLOCK;
+                rule.Direction = direction;
+                rule.Protocol = protocol;
+                rule.RemoteAddresses = remoteAddresses;
+                rule.Enabled = true;
+
+                rules.Add(rule);
+                OnLog?.Invoke($"Created firewall rule: {ruleName}");
+            }
+        }
+        catch (Exception ex)
+        {
+            OnLog?.Invoke($"Firewall rule error ({ruleName}): {ex.Message}");
+        }
+    }
+
+    private void RemoveAllRules()
+    {
+        string[] ruleNames = [RuleTcpIn, RuleTcpOut, RuleUdpIn, RuleUdpOut];
+        foreach (var name in ruleNames)
+        {
+            try { _policy.Rules.Remove(name); } catch { }
+        }
+    }
+
+    private void LoadExistingRules()
+    {
+        try
+        {
+            foreach (dynamic rule in _policy.Rules)
+            {
+                string? name = rule.Name;
+                if (name?.StartsWith(RulePrefix) != true) continue;
+
+                string? addrs = rule.RemoteAddresses;
+                if (string.IsNullOrEmpty(addrs)) continue;
+
+                foreach (var addr in addrs.Split(','))
+                {
+                    var ip = addr.Split('/')[0].Trim();
+                    if (!string.IsNullOrEmpty(ip))
+                        _blockedIps.Add(ip);
+                }
+            }
+
+            if (_blockedIps.Count > 0)
+                OnLog?.Invoke($"Loaded {_blockedIps.Count} existing blocked IP(s) from firewall rules.");
+        }
+        catch (Exception ex)
+        {
+            OnLog?.Invoke($"Error loading existing rules: {ex.Message}");
+        }
+    }
+
+    public void Dispose()
+    {
+        // COM objects are released by GC
+    }
+}

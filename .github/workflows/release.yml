@@ -1,0 +1,103 @@
+name: Release Build
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.x'
+
+      - name: Restore dependencies
+        run: dotnet restore src/LumineFuck/LumineFuck.csproj
+
+      - name: Set version (strip leading 'v')
+        id: version
+        run: |
+          $ver = "${{ github.ref_name }}" -replace '^v', ''
+          echo "VERSION=$ver" >> $env:GITHUB_OUTPUT
+
+      - name: Publish application
+        run: |
+          dotnet publish src/LumineFuck/LumineFuck.csproj `
+            -c Release `
+            -r win-x64 `
+            --self-contained true `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:Version=${{ steps.version.outputs.VERSION }} `
+            -o publish/
+
+      - name: Decode certificate
+        if: ${{ secrets.CERTIFICATE_PFX != '' }}
+        env:
+          CERTIFICATE_PFX: ${{ secrets.CERTIFICATE_PFX }}
+        run: |
+          $certBytes = [Convert]::FromBase64String($env:CERTIFICATE_PFX)
+          [IO.File]::WriteAllBytes("$env:RUNNER_TEMP\cert.pfx", $certBytes)
+
+      - name: Sign executable
+        if: ${{ secrets.CERTIFICATE_PFX != '' }}
+        env:
+          CERTIFICATE_PFX: ${{ secrets.CERTIFICATE_PFX }}
+          CERTIFICATE_PASSWORD: ${{ secrets.CERTIFICATE_PASSWORD }}
+        run: |
+          $signtool = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits" -Recurse -Filter "signtool.exe" | Select-Object -First 1
+          & $signtool.FullName sign /f "$env:RUNNER_TEMP\cert.pfx" /p $env:CERTIFICATE_PASSWORD /fd sha256 /tr http://timestamp.digicert.com /td sha256 publish/LumineFuck.exe
+
+      - name: Install Velopack CLI
+        run: dotnet tool install -g vpk
+
+      - name: Build Velopack release
+        run: |
+          vpk pack `
+            --packId LumineFuck `
+            --packVersion ${{ steps.version.outputs.VERSION }} `
+            --packDir publish/ `
+            --mainExe LumineFuck.exe `
+            --outputDir releases/
+
+      - name: Build Inno Setup installer
+        uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
+        with:
+          path: src/Installer/setup.iss
+          options: /DAppVersion=${{ steps.version.outputs.VERSION }}
+
+      - name: Sign installer
+        if: ${{ secrets.CERTIFICATE_PFX != '' }}
+        env:
+          CERTIFICATE_PFX: ${{ secrets.CERTIFICATE_PFX }}
+          CERTIFICATE_PASSWORD: ${{ secrets.CERTIFICATE_PASSWORD }}
+        run: |
+          $signtool = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits" -Recurse -Filter "signtool.exe" | Select-Object -First 1
+          $installers = Get-ChildItem -Path "Output" -Filter "*.exe"
+          foreach ($installer in $installers) {
+            & $signtool.FullName sign /f "$env:RUNNER_TEMP\cert.pfx" /p $env:CERTIFICATE_PASSWORD /fd sha256 /tr http://timestamp.digicert.com /td sha256 $installer.FullName
+          }
+
+      - name: Clean up certificate
+        if: always()
+        run: Remove-Item "$env:RUNNER_TEMP\cert.pfx" -ErrorAction SilentlyContinue
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            releases/*.nupkg
+            releases/RELEASES
+            releases/*Setup*.exe
+            Output/*.exe
+          generate_release_notes: true
