@@ -62,11 +62,10 @@ Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(
 // Check Npcap is installed before completing setup
 function InitializeSetup(): Boolean;
 var
-  NpcapKey: String;
   ErrorCode: Integer;
 begin
-  NpcapKey := 'SOFTWARE\Npcap';
-  if not RegKeyExists(HKLM, NpcapKey) then
+  // Check via the Npcap Windows service key (not subject to WOW64 registry redirection)
+  if not RegKeyExists(HKLM, 'SYSTEM\CurrentControlSet\Services\npcap') then
   begin
     if MsgBox('Npcap is required for UDP traffic monitoring (same driver as Wireshark).' + #13#10 +
               'Click OK to open the Npcap download page, then re-run this installer after installing Npcap.',

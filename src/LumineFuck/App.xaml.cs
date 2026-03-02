@@ -74,9 +74,14 @@ public partial class App : Application
 
     private static bool IsNpcapInstalled()
     {
-        // Npcap registers itself under HKLM\SOFTWARE\Npcap
-        using var key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Npcap");
-        return key != null;
+        // Check Npcap service key — not subject to WOW64 registry redirection
+        using var services = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64);
+        using var npcapService = services.OpenSubKey(@"SYSTEM\CurrentControlSet\Services\npcap");
+        if (npcapService != null) return true;
+
+        // Fallback: check SOFTWARE\Npcap in 64-bit hive
+        using var software = services.OpenSubKey(@"SOFTWARE\Npcap");
+        return software != null;
     }
 }
 
