@@ -9,7 +9,7 @@ namespace LumineFuck.Services;
 public sealed class UpdateService
 {
     // TODO: Update this to the actual GitHub repository owner/name
-    private const string RepoUrl = "https://github.com/Nano191225/fuck-lurnine";
+    private const string RepoUrl = "https://github.com/Nano191225/lumine-fuck";
 
     private readonly UpdateManager _updateManager;
 

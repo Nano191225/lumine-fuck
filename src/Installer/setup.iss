@@ -8,7 +8,7 @@
 #define AppName "LumineFuck Firewall"
 #define AppPublisher "Nano191225"
 #define AppExeName "LumineFuck.exe"
-#define AppURL "https://github.com/Nano191225/fuck-lurnine"
+#define AppURL "https://github.com/Nano191225/lumine-fuck"
 
 [Setup]
 AppId={{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}}
