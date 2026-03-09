@@ -72,7 +72,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
         _connectionMonitor = new ConnectionMonitor();
         _dnsResolver = new DnsResolver();
-        _firewallManager = new FirewallManager();
+        _firewallManager = new FirewallManager(_dispatcher);
         _blockList = new BlockList();
         _updateService = new UpdateService();
         _ispLookupService = new IspLookupService();

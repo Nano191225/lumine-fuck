@@ -12,7 +12,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Resources\app.ico</ApplicationIcon>
     <AssemblyName>LumineFuck</AssemblyName>
-    <Version>0.3.3</Version>
+    <Version>0</Version>
     <Company>Nano191225</Company>
     <Product>LumineFuck Firewall</Product>
     <Description>Minecraft-focused Windows firewall: blocks malicious IPs via rDNS domain matching and IP/CIDR rules</Description>

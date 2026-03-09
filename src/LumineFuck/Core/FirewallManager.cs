@@ -1,10 +1,12 @@
 using System.Net;
+using System.Windows.Threading;
 
 namespace LumineFuck.Core;
 
 /// <summary>
 /// Manages Windows Firewall block rules via dynamic COM (HNetCfg.FwPolicy2).
 /// Creates 4 rules per block set: TCP In, TCP Out, UDP In, UDP Out.
+/// All COM operations are dispatched to the STA UI thread to avoid apartment violations.
 /// </summary>
 public sealed class FirewallManager : IDisposable
 {
@@ -24,9 +26,10 @@ public sealed class FirewallManager : IDisposable
     private const int NET_FW_IP_PROTOCOL_TCP = 6;
     private const int NET_FW_IP_PROTOCOL_UDP = 17;
 
-    private readonly dynamic _policy;
+    private dynamic? _policy;
     private readonly HashSet<string> _blockedIps = new();
     private readonly object _lock = new();
+    private readonly Dispatcher _dispatcher;
 
     public event Action<string>? OnLog;
 
@@ -35,14 +38,26 @@ public sealed class FirewallManager : IDisposable
         get { lock (_lock) return _blockedIps.Count; }
     }
 
-    public FirewallManager()
+    public FirewallManager(Dispatcher dispatcher)
     {
-        var policyType = Type.GetTypeFromProgID("HNetCfg.FwPolicy2")
-            ?? throw new InvalidOperationException("Cannot access Windows Firewall COM interface. Is Windows Firewall service running?");
-        _policy = Activator.CreateInstance(policyType)
-            ?? throw new InvalidOperationException("Failed to create FwPolicy2 instance.");
+        _dispatcher = dispatcher;
+        _dispatcher.Invoke(InitializePolicy);
+    }
 
-        LoadExistingRules();
+    private void InitializePolicy()
+    {
+        try
+        {
+            var policyType = Type.GetTypeFromProgID("HNetCfg.FwPolicy2")
+                ?? throw new InvalidOperationException("Cannot access Windows Firewall COM interface.");
+            _policy = Activator.CreateInstance(policyType)
+                ?? throw new InvalidOperationException("Failed to create FwPolicy2 instance.");
+            LoadExistingRules();
+        }
+        catch (Exception ex)
+        {
+            OnLog?.Invoke($"Firewall init error: {ex.Message}");
+        }
     }
 
     /// <summary>
@@ -51,14 +66,17 @@ public sealed class FirewallManager : IDisposable
     public bool BlockIp(IPAddress ip)
     {
         string ipStr = ip.ToString();
+        bool added;
 
         lock (_lock)
-        {
-            if (!_blockedIps.Add(ipStr))
-                return false;
+            added = _blockedIps.Add(ipStr);
 
-            UpdateAllFirewallRules();
-        }
+        if (!added) return false;
+
+        _dispatcher.Invoke(() =>
+        {
+            lock (_lock) UpdateAllFirewallRules();
+        });
 
         OnLog?.Invoke($"🚫 Blocked IP: {ipStr}");
         return true;
@@ -69,10 +87,13 @@ public sealed class FirewallManager : IDisposable
     /// </summary>
     public void UnblockAll()
     {
-        lock (_lock)
+        lock (_lock) _blockedIps.Clear();
+
+        _dispatcher.Invoke(() =>
         {
             try
             {
+                if (_policy == null) return;
                 var rules = _policy.Rules;
                 var toRemove = new List<string>();
 
@@ -86,14 +107,13 @@ public sealed class FirewallManager : IDisposable
                 foreach (var name in toRemove)
                     rules.Remove(name);
 
-                _blockedIps.Clear();
                 OnLog?.Invoke($"Removed {toRemove.Count} firewall rule(s).");
             }
             catch (Exception ex)
             {
                 OnLog?.Invoke($"Error removing rules: {ex.Message}");
             }
-        }
+        });
     }
 
     /// <summary>
@@ -102,14 +122,17 @@ public sealed class FirewallManager : IDisposable
     public bool UnblockIp(IPAddress ip)
     {
         string ipStr = ip.ToString();
+        bool removed;
 
         lock (_lock)
-        {
-            if (!_blockedIps.Remove(ipStr))
-                return false;
+            removed = _blockedIps.Remove(ipStr);
 
-            UpdateAllFirewallRules();
-        }
+        if (!removed) return false;
+
+        _dispatcher.Invoke(() =>
+        {
+            lock (_lock) UpdateAllFirewallRules();
+        });
 
         OnLog?.Invoke($"✅ Unblocked IP: {ipStr}");
         return true;
@@ -123,6 +146,9 @@ public sealed class FirewallManager : IDisposable
 
     private void UpdateAllFirewallRules()
     {
+        // Must be called from the STA dispatcher thread.
+        if (_policy == null) return;
+
         if (_blockedIps.Count == 0)
         {
             RemoveAllRules();
@@ -140,6 +166,7 @@ public sealed class FirewallManager : IDisposable
 
     private void UpdateOrCreateRule(string ruleName, int protocol, int direction, string remoteAddresses)
     {
+        if (_policy == null) return;
         try
         {
             var rules = _policy.Rules;
@@ -188,6 +215,7 @@ public sealed class FirewallManager : IDisposable
 
     private void RemoveAllRules()
     {
+        if (_policy == null) return;
         string[] ruleNames = [RuleTcpIn, RuleTcpOut, RuleUdpIn, RuleUdpOut];
         foreach (var name in ruleNames)
         {
@@ -197,6 +225,8 @@ public sealed class FirewallManager : IDisposable
 
     private void LoadExistingRules()
     {
+        // Must be called from the STA dispatcher thread.
+        if (_policy == null) return;
         try
         {
             foreach (dynamic rule in _policy.Rules)
