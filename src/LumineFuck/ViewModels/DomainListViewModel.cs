@@ -57,6 +57,17 @@ public partial class DomainListViewModel : ObservableObject
         }
     }
 
+    public bool BlockVpn
+    {
+        get => _blockList.BlockVpn;
+        set
+        {
+            if (_blockList.BlockVpn == value) return;
+            _blockList.BlockVpn = value;
+            OnPropertyChanged();
+        }
+    }
+
     public DomainListViewModel(BlockList blockList)
     {
         _blockList = blockList;

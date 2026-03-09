@@ -219,6 +219,23 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Text="{DynamicResource Str_Cfg_BlockVpn_Title}"
+                                   FontSize="13" FontWeight="SemiBold" Foreground="#CDD6F4"/>
+                        <TextBlock Text="{DynamicResource Str_Cfg_BlockVpn_Desc}"
+                                   FontSize="11" Foreground="#A6ADC8" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                    </StackPanel>
+                    <CheckBox Grid.Column="1" IsChecked="{Binding BlockVpn}" VerticalAlignment="Center"
+                              Margin="12,0,0,0" Width="18" Height="18"/>
+                </Grid>
+            </Border>
+
+            <Border Background="#313244" CornerRadius="8" Padding="14,10" Margin="0,0,0,4">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
                         <TextBlock Text="{DynamicResource Str_Cfg_Unblock_Title}"
                                    FontSize="13" FontWeight="SemiBold" Foreground="#CDD6F4"/>
                         <TextBlock Text="{DynamicResource Str_Cfg_Unblock_Desc}"

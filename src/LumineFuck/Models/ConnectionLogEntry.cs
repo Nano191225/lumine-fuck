@@ -11,9 +11,12 @@ public sealed class ConnectionLogEntry
     public IPAddress IpAddress { get; init; } = IPAddress.None;
     public string? Rdns { get; init; }
     public string? Isp { get; init; }
+    public bool IsVpn { get; init; }
 
     public string TimestampString => Timestamp.ToString("yyyy-MM-dd HH:mm:ss");
     public string IpAddressString => IpAddress.ToString();
     public string RdnsDisplay => Rdns ?? "—";
-    public string IspDisplay => Isp ?? "—";
+    public string IspDisplay => Isp != null
+        ? (IsVpn ? $"⚠ {Isp}" : Isp)
+        : (IsVpn ? "⚠ VPN/Hosting" : "—");
 }

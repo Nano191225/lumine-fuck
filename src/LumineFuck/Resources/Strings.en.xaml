@@ -36,6 +36,8 @@
     <s:String x:Key="Str_Cfg_Remove">— Remove</s:String>
     <s:String x:Key="Str_Cfg_Notify_Title">Show notifications when blocked</s:String>
     <s:String x:Key="Str_Cfg_Notify_Desc">Display a desktop notification each time a connection is blocked.</s:String>
+    <s:String x:Key="Str_Cfg_BlockVpn_Title">Block VPN / Proxy / Hosting connections</s:String>
+    <s:String x:Key="Str_Cfg_BlockVpn_Desc">Automatically block IPs identified as VPN, proxy or datacenter hosting. Microsoft/Xbox/Azure IPs are always excluded.</s:String>
     <s:String x:Key="Str_Cfg_Unblock_Title">Auto-unblock after (seconds)</s:String>
     <s:String x:Key="Str_Cfg_Unblock_Desc">Automatically remove firewall rule after N seconds. 0 = never unblock.</s:String>
     <s:String x:Key="Str_Cfg_Delay_Title">Block delay (seconds)</s:String>

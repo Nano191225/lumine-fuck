@@ -311,8 +311,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
             AddLog($"rDNS exception for {ip}: {ex.GetType().Name}: {ex.Message}");
         }
 
-        // Record to Connection Log with ISP lookup (fire-and-forget, non-blocking)
-        _ = AddConnectionLogEntryAsync(ip, hostname);
+        // ISP + VPN lookup (cached — single API call per IP)
+        LumineFuck.Models.IpApiResult? apiResult = null;
+        try { apiResult = await _ispLookupService.LookupAsync(ip); }
+        catch { }
+
+        // Record to Connection Log
+        AddConnectionLogEntry(ip, hostname, apiResult);
 
         // 1. Check IP-based block list
         if (_blockList.MatchesBlockedIp(ip))
@@ -332,25 +337,32 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
             AddLog($"🚫 Blocking {ip} ({hostname}) — matched domain {matchedDomain}");
             BlockAndRecord(ip, hostname, matchedDomain);
+            return;
         }
-        else
+
+        // 3. VPN block (if enabled, non-Microsoft only)
+        if (_blockList.BlockVpn && apiResult is { IsVpnLikely: true, IsMicrosoft: false })
         {
-            AddLog($"✓ {ip} → {hostname ?? "(no rDNS)"} — not blocked");
+            var ispName = apiResult.Org ?? "VPN/Hosting";
+            AddLog($"🚫 Blocking {ip} — VPN/hosting detected ({ispName})");
+            BlockAndRecord(ip, hostname, $"VPN: {ispName}");
+            return;
         }
+
+        AddLog($"✓ {ip} → {hostname ?? "(no rDNS)"} [{apiResult?.Org ?? "?"}] — not blocked");
     }
 
-    private async Task AddConnectionLogEntryAsync(IPAddress ip, string? hostname)
-    {
-        string? isp = null;
-        try { isp = await _ispLookupService.LookupAsync(ip); }
-        catch { }
+    // --- Auto-unblock queue ---
 
+    private void AddConnectionLogEntry(IPAddress ip, string? hostname, LumineFuck.Models.IpApiResult? apiResult)
+    {
         var entry = new ConnectionLogEntry
         {
             Timestamp = DateTime.Now,
             IpAddress = ip,
             Rdns = hostname,
-            Isp = isp
+            Isp = apiResult?.Org,
+            IsVpn = apiResult?.IsVpnLikely == true && apiResult?.IsMicrosoft == false
         };
 
         _dispatcher.Invoke(() =>
@@ -360,8 +372,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
                 ConnectionLogEntries.RemoveAt(ConnectionLogEntries.Count - 1);
         });
     }
-
-    // --- Auto-unblock queue ---
 
     private readonly record struct ScheduledUnblock(IPAddress Ip, DateTime UnblockAt);
     private readonly List<ScheduledUnblock> _unblockQueue = new();

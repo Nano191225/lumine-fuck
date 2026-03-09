@@ -95,6 +95,26 @@ public sealed class BlockList
         }
     }
 
+    private bool _blockVpn = false;
+    /// <summary>
+    /// When true, connections from VPN/proxy/hosting IPs (non-Microsoft) are automatically blocked.
+    /// </summary>
+    public bool BlockVpn
+    {
+        get { lock (_lock) return _blockVpn; }
+        set
+        {
+            lock (_lock)
+            {
+                if (_blockVpn == value) return;
+                _blockVpn = value;
+                Save();
+            }
+            OnLog?.Invoke($"Block VPN: {value}");
+            OnChanged?.Invoke();
+        }
+    }
+
     public BlockList()
     {
         var appDataDir = Path.Combine(
@@ -144,6 +164,7 @@ public sealed class BlockList
                         _unblockAfterSeconds = data.UnblockAfterSeconds;
                         _blockDelaySeconds = data.BlockDelaySeconds;
                         _showNotifications = data.ShowNotifications;
+                        _blockVpn = data.BlockVpn;
                         RebuildIpRanges();
                         OnLog?.Invoke($"Loaded {_domains.Count} domain(s) + {_ips.Count} IP rule(s) from config. UnblockAfter={_unblockAfterSeconds}s");
                         return;
@@ -324,7 +345,7 @@ public sealed class BlockList
         // lock held by caller
         try
         {
-            var data = new BlockListData { Domains = _domains, Ips = _ips, UnblockAfterSeconds = _unblockAfterSeconds, BlockDelaySeconds = _blockDelaySeconds, ShowNotifications = _showNotifications };
+            var data = new BlockListData { Domains = _domains, Ips = _ips, UnblockAfterSeconds = _unblockAfterSeconds, BlockDelaySeconds = _blockDelaySeconds, ShowNotifications = _showNotifications, BlockVpn = _blockVpn };
             var json = JsonSerializer.Serialize(data, JsonOptions);
             File.WriteAllText(_filePath, json);
         }
@@ -361,6 +382,7 @@ public sealed class BlockList
         public int UnblockAfterSeconds { get; set; } = 10;
         public int BlockDelaySeconds { get; set; } = 5;
         public bool ShowNotifications { get; set; } = true;
+        public bool BlockVpn { get; set; } = false;
     }
 
     // --- IP Range helper ---

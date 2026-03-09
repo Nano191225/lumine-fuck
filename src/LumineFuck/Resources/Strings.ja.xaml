@@ -36,6 +36,8 @@
     <s:String x:Key="Str_Cfg_Remove">— 削除</s:String>
     <s:String x:Key="Str_Cfg_Notify_Title">ブロック時に通知を表示</s:String>
     <s:String x:Key="Str_Cfg_Notify_Desc">接続がブロックされるたびにデスクトップ通知を表示します。</s:String>
+    <s:String x:Key="Str_Cfg_BlockVpn_Title">VPN / プロキシ / ホスティングの接続をブロック</s:String>
+    <s:String x:Key="Str_Cfg_BlockVpn_Desc">VPN、プロキシ、データセンターと判定されたIPを自動ブロックします。Microsoft / Xbox / AzureのIPは常に除外されます。</s:String>
     <s:String x:Key="Str_Cfg_Unblock_Title">自動ブロック解除（秒）</s:String>
     <s:String x:Key="Str_Cfg_Unblock_Desc">N秒後にファイアウォールルールを自動削除します。0 = 解除しない。</s:String>
     <s:String x:Key="Str_Cfg_Delay_Title">ブロック遅延（秒）</s:String>
