@@ -1,0 +1,51 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:s="clr-namespace:System;assembly=mscorlib">
+
+    <!-- Header -->
+    <s:String x:Key="Str_Protection">保護</s:String>
+    <s:String x:Key="Str_Status_Stopped">停止中</s:String>
+    <s:String x:Key="Str_Status_Active">監視中</s:String>
+
+    <!-- Stats cards -->
+    <s:String x:Key="Str_BlockedIPs">ブロックされたIP</s:String>
+    <s:String x:Key="Str_ScannedIPs">スキャン済みIP</s:String>
+    <s:String x:Key="Str_BlockedDomains">ブロックドメイン</s:String>
+
+    <!-- Tab headers -->
+    <s:String x:Key="Str_Tab_Blocked">🚫 ブロック済み接続</s:String>
+    <s:String x:Key="Str_Tab_ConnLog">🌐 接続ログ</s:String>
+    <s:String x:Key="Str_Tab_Activity">📋 アクティビティログ</s:String>
+
+    <!-- Table column headers -->
+    <s:String x:Key="Str_Col_Time">時刻</s:String>
+    <s:String x:Key="Str_Col_IPAddress">IPアドレス</s:String>
+    <s:String x:Key="Str_Col_Hostname">ホスト名</s:String>
+    <s:String x:Key="Str_Col_MatchedDomain">マッチしたドメイン</s:String>
+    <s:String x:Key="Str_Col_rDNS">逆引きDNS</s:String>
+    <s:String x:Key="Str_Col_ISP">プロバイダ</s:String>
+
+    <!-- Config window -->
+    <s:String x:Key="Str_Cfg_Title">設定</s:String>
+    <s:String x:Key="Str_Cfg_Domains_Header">🌐 ブロックするドメインサフィックス</s:String>
+    <s:String x:Key="Str_Cfg_Domains_Desc">逆引きDNSのホスト名がこれらのサフィックスで終わるIPをブロックします。</s:String>
+    <s:String x:Key="Str_Cfg_IPs_Header">🔒 ブロックするIPアドレス / CIDR</s:String>
+    <s:String x:Key="Str_Cfg_IPs_Desc">特定のIPまたは範囲を指定します（例: 1.2.3.4 または 10.0.0.0/24）。逆引き不要。</s:String>
+    <s:String x:Key="Str_Cfg_Advanced">⚙️ 詳細設定</s:String>
+    <s:String x:Key="Str_Cfg_Add">+ 追加</s:String>
+    <s:String x:Key="Str_Cfg_Remove">— 削除</s:String>
+    <s:String x:Key="Str_Cfg_Notify_Title">ブロック時に通知を表示</s:String>
+    <s:String x:Key="Str_Cfg_Notify_Desc">接続がブロックされるたびにデスクトップ通知を表示します。</s:String>
+    <s:String x:Key="Str_Cfg_Unblock_Title">自動ブロック解除（秒）</s:String>
+    <s:String x:Key="Str_Cfg_Unblock_Desc">N秒後にファイアウォールルールを自動削除します。0 = 解除しない。</s:String>
+    <s:String x:Key="Str_Cfg_Delay_Title">ブロック遅延（秒）</s:String>
+    <s:String x:Key="Str_Cfg_Delay_Desc">検出後N秒待ってからブロックします。0 = 即座にブロック。</s:String>
+
+    <!-- Buttons -->
+    <s:String x:Key="Str_Btn_Config">⚙️ 設定</s:String>
+    <s:String x:Key="Str_Btn_ClearRules">🗑️ ルール削除</s:String>
+    <s:String x:Key="Str_Btn_ClearLog">🧹 ログ削除</s:String>
+    <s:String x:Key="Str_Btn_Language">🌐 言語</s:String>
+    <s:String x:Key="Str_Btn_CheckUpdates">🔄 更新確認</s:String>
+
+</ResourceDictionary>

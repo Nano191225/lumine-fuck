@@ -126,7 +126,7 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
-                    <TextBlock Text="Protection" VerticalAlignment="Center"
+                    <TextBlock Text="{DynamicResource Str_Protection}" VerticalAlignment="Center"
                                FontSize="14" Foreground="#A6ADC8" Margin="0,0,12,0"/>
                     <ToggleButton Style="{StaticResource ToggleSwitch}"
                                   IsChecked="{Binding IsEnabled, Mode=TwoWay}"/>
@@ -147,21 +147,21 @@
 
             <Border Grid.Column="0" Style="{StaticResource CardBorder}">
                 <StackPanel>
-                    <TextBlock Text="Blocked IPs" FontSize="12" Foreground="#A6ADC8"/>
+                    <TextBlock Text="{DynamicResource Str_BlockedIPs}" FontSize="12" Foreground="#A6ADC8"/>
                     <TextBlock Text="{Binding BlockedCount}" FontSize="32" FontWeight="Bold" Foreground="#F38BA8"/>
                 </StackPanel>
             </Border>
 
             <Border Grid.Column="1" Style="{StaticResource CardBorder}">
                 <StackPanel>
-                    <TextBlock Text="Scanned IPs" FontSize="12" Foreground="#A6ADC8"/>
+                    <TextBlock Text="{DynamicResource Str_ScannedIPs}" FontSize="12" Foreground="#A6ADC8"/>
                     <TextBlock Text="{Binding ScannedCount}" FontSize="32" FontWeight="Bold" Foreground="#89B4FA"/>
                 </StackPanel>
             </Border>
 
             <Border Grid.Column="2" Style="{StaticResource CardBorder}">
                 <StackPanel>
-                    <TextBlock Text="Blocked Domains" FontSize="12" Foreground="#A6ADC8"/>
+                    <TextBlock Text="{DynamicResource Str_BlockedDomains}" FontSize="12" Foreground="#A6ADC8"/>
                     <TextBlock Text="{Binding DomainCount}" FontSize="32" FontWeight="Bold" Foreground="#F9E2AF"/>
                 </StackPanel>
             </Border>
@@ -201,7 +201,7 @@
             </TabControl.Resources>
 
             <!-- Blocked Connections Tab -->
-            <TabItem Header="🚫 Blocked Connections">
+            <TabItem Header="{DynamicResource Str_Tab_Blocked}">
                 <Border Style="{StaticResource CardBorder}" Margin="0,8,0,0">
                     <DataGrid ItemsSource="{Binding BlockedEntries}"
                               AutoGenerateColumns="False"
@@ -243,17 +243,83 @@
                             </Style>
                         </DataGrid.CellStyle>
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Time" Binding="{Binding TimestampString}" Width="150"/>
-                            <DataGridTextColumn Header="IP Address" Binding="{Binding IpAddressString}" Width="150"/>
-                            <DataGridTextColumn Header="Hostname" Binding="{Binding Hostname}" Width="*"/>
-                            <DataGridTextColumn Header="Matched Domain" Binding="{Binding MatchedDomain}" Width="200"/>
+                            <DataGridTextColumn Header="{DynamicResource Str_Col_Time}" Binding="{Binding TimestampString}" Width="150"/>
+                            <DataGridTextColumn Header="{DynamicResource Str_Col_IPAddress}" Binding="{Binding IpAddressString}" Width="150"/>
+                            <DataGridTextColumn Header="{DynamicResource Str_Col_Hostname}" Binding="{Binding Hostname}" Width="*"/>
+                            <DataGridTextColumn Header="{DynamicResource Str_Col_MatchedDomain}" Binding="{Binding MatchedDomain}" Width="200"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+            </TabItem>
+
+            <!-- Connection Log Tab -->
+            <TabItem Header="{DynamicResource Str_Tab_ConnLog}">
+                <Border Style="{StaticResource CardBorder}" Margin="0,8,0,0">
+                    <DataGrid ItemsSource="{Binding ConnectionLogEntries}"
+                              AutoGenerateColumns="False"
+                              IsReadOnly="True"
+                              Background="Transparent"
+                              Foreground="#CDD6F4"
+                              BorderThickness="0"
+                              RowBackground="#313244"
+                              AlternatingRowBackground="#3B3D50"
+                              GridLinesVisibility="None"
+                              HeadersVisibility="Column"
+                              CanUserReorderColumns="False"
+                              CanUserResizeRows="False"
+                              SelectionMode="Single"
+                              FontSize="13">
+                        <DataGrid.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Copy IP Address"
+                                          Command="{Binding PlacementTarget.DataContext.CopyConnectionIpCommand,
+                                                    RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                          CommandParameter="{Binding PlacementTarget.SelectedItem,
+                                                            RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                <MenuItem Header="Add to Block List"
+                                          Command="{Binding PlacementTarget.DataContext.AddConnectionIpToBlockListCommand,
+                                                    RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                          CommandParameter="{Binding PlacementTarget.SelectedItem,
+                                                            RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                            </ContextMenu>
+                        </DataGrid.ContextMenu>
+                        <DataGrid.ColumnHeaderStyle>
+                            <Style TargetType="DataGridColumnHeader">
+                                <Setter Property="Background" Value="#45475A"/>
+                                <Setter Property="Foreground" Value="#BAC2DE"/>
+                                <Setter Property="Padding" Value="8,6"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                <Setter Property="BorderThickness" Value="0"/>
+                            </Style>
+                        </DataGrid.ColumnHeaderStyle>
+                        <DataGrid.CellStyle>
+                            <Style TargetType="DataGridCell">
+                                <Setter Property="Padding" Value="8,4"/>
+                                <Setter Property="BorderThickness" Value="0"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="DataGridCell">
+                                            <Border Padding="{TemplateBinding Padding}"
+                                                    Background="{TemplateBinding Background}">
+                                                <ContentPresenter VerticalAlignment="Center"/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </DataGrid.CellStyle>
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="{DynamicResource Str_Col_Time}" Binding="{Binding TimestampString}" Width="150"/>
+                            <DataGridTextColumn Header="{DynamicResource Str_Col_IPAddress}" Binding="{Binding IpAddressString}" Width="150"/>
+                            <DataGridTextColumn Header="{DynamicResource Str_Col_rDNS}" Binding="{Binding RdnsDisplay}" Width="*"/>
+                            <DataGridTextColumn Header="{DynamicResource Str_Col_ISP}" Binding="{Binding IspDisplay}" Width="220"/>
                         </DataGrid.Columns>
                     </DataGrid>
                 </Border>
             </TabItem>
 
             <!-- Activity Log Tab -->
-            <TabItem Header="📋 Activity Log">
+            <TabItem Header="{DynamicResource Str_Tab_Activity}">
                 <Border Style="{StaticResource CardBorder}" Margin="0,8,0,0">
                     <ListBox ItemsSource="{Binding LogEntries}"
                              Background="Transparent"
@@ -284,17 +350,21 @@
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0" Orientation="Horizontal">
-                    <Button Content="⚙️ Config"
+                    <Button Content="{DynamicResource Str_Btn_Config}"
                             Style="{StaticResource AccentButton}"
                             Command="{Binding OpenDomainManagerCommand}"
                             Margin="0,0,8,0"/>
-                    <Button Content="🗑️ Clear Rules"
+                    <Button Content="{DynamicResource Str_Btn_ClearRules}"
                             Style="{StaticResource DangerButton}"
                             Command="{Binding ClearAllRulesCommand}"
                             Margin="0,0,8,0"/>
-                    <Button Content="🧹 Clear Log"
+                    <Button Content="{DynamicResource Str_Btn_ClearLog}"
                             Style="{StaticResource SecondaryButton}"
-                            Command="{Binding ClearLogCommand}"/>
+                            Command="{Binding ClearLogCommand}"
+                            Margin="0,0,8,0"/>
+                    <Button Content="{DynamicResource Str_Btn_Language}"
+                            Style="{StaticResource SecondaryButton}"
+                            Command="{Binding ToggleLanguageCommand}"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
@@ -306,7 +376,7 @@
                     <ProgressBar Value="{Binding UpdateProgress}" Width="100" Height="8"
                                  Visibility="{Binding IsUpdating, Converter={StaticResource BoolToVisibility}}"
                                  Foreground="#A6E3A1" Background="#45475A" BorderThickness="0"/>
-                    <Button Content="🔄 Check Updates"
+                    <Button Content="{DynamicResource Str_Btn_CheckUpdates}"
                             Style="{StaticResource SecondaryButton}"
                             Command="{Binding CheckForUpdatesCommand}"/>
                 </StackPanel>

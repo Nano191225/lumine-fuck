@@ -1,7 +1,7 @@
 <Window x:Class="LumineFuck.Views.DomainListWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Config"
+        Title="{DynamicResource Str_Cfg_Title}"
         Height="700" Width="520"
         WindowStartupLocation="CenterOwner"
         Background="#1E1E2E"
@@ -112,8 +112,8 @@
 
             <!-- === Domain Suffixes Section === -->
             <StackPanel Margin="0,0,0,8">
-                <TextBlock Text="🌐 Blocked Domain Suffixes" Style="{StaticResource SectionHeader}"/>
-                <TextBlock Text="IPs whose rDNS hostname ends with these suffixes will be blocked."
+                <TextBlock Text="{DynamicResource Str_Cfg_Domains_Header}" Style="{StaticResource SectionHeader}"/>
+                <TextBlock Text="{DynamicResource Str_Cfg_Domains_Desc}"
                            Style="{StaticResource SectionDesc}"/>
             </StackPanel>
 
@@ -140,20 +140,20 @@
                     </TextBox>
                 </Border>
 
-                <Button Grid.Column="1" Content="+ Add"
+                <Button Grid.Column="1" Content="{DynamicResource Str_Cfg_Add}"
                         Style="{StaticResource AccentButton}"
                         Command="{Binding AddDomainCommand}"
                         Margin="0,0,8,0"/>
 
-                <Button Grid.Column="2" Content="— Remove"
+                <Button Grid.Column="2" Content="{DynamicResource Str_Cfg_Remove}"
                         Style="{StaticResource DangerButton}"
                         Command="{Binding RemoveDomainCommand}"/>
             </Grid>
 
             <!-- === IP / CIDR Section === -->
             <StackPanel Margin="0,0,0,8">
-                <TextBlock Text="🔒 Blocked IP Addresses / CIDR" Style="{StaticResource SectionHeader}"/>
-                <TextBlock Text="Block specific IPs or ranges (e.g. 1.2.3.4 or 10.0.0.0/24). No rDNS needed."
+                <TextBlock Text="{DynamicResource Str_Cfg_IPs_Header}" Style="{StaticResource SectionHeader}"/>
+                <TextBlock Text="{DynamicResource Str_Cfg_IPs_Desc}"
                            Style="{StaticResource SectionDesc}"/>
             </StackPanel>
 
@@ -180,19 +180,19 @@
                     </TextBox>
                 </Border>
 
-                <Button Grid.Column="1" Content="+ Add"
+                <Button Grid.Column="1" Content="{DynamicResource Str_Cfg_Add}"
                         Style="{StaticResource AccentButton}"
                         Command="{Binding AddIpCommand}"
                         Margin="0,0,8,0"/>
 
-                <Button Grid.Column="2" Content="— Remove"
+                <Button Grid.Column="2" Content="{DynamicResource Str_Cfg_Remove}"
                         Style="{StaticResource DangerButton}"
                         Command="{Binding RemoveIpCommand}"/>
             </Grid>
 
             <!-- === Advanced Settings Section === -->
             <StackPanel Margin="0,0,0,8">
-                <TextBlock Text="⚙️ Advanced" Style="{StaticResource SectionHeader}"/>
+                <TextBlock Text="{DynamicResource Str_Cfg_Advanced}" Style="{StaticResource SectionHeader}"/>
             </StackPanel>
 
             <Border Background="#313244" CornerRadius="8" Padding="14,10" Margin="0,0,0,4">
@@ -202,9 +202,9 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                        <TextBlock Text="Show notifications when blocked"
+                        <TextBlock Text="{DynamicResource Str_Cfg_Notify_Title}"
                                    FontSize="13" FontWeight="SemiBold" Foreground="#CDD6F4"/>
-                        <TextBlock Text="Display a desktop notification each time a connection is blocked."
+                        <TextBlock Text="{DynamicResource Str_Cfg_Notify_Desc}"
                                    FontSize="11" Foreground="#A6ADC8" TextWrapping="Wrap" Margin="0,2,0,0"/>
                     </StackPanel>
                     <CheckBox Grid.Column="1" IsChecked="{Binding ShowNotifications}" VerticalAlignment="Center"
@@ -219,9 +219,9 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                        <TextBlock Text="Auto-unblock after (seconds)"
+                        <TextBlock Text="{DynamicResource Str_Cfg_Unblock_Title}"
                                    FontSize="13" FontWeight="SemiBold" Foreground="#CDD6F4"/>
-                        <TextBlock Text="Automatically remove firewall rule after N seconds. 0 = never unblock."
+                        <TextBlock Text="{DynamicResource Str_Cfg_Unblock_Desc}"
                                    FontSize="11" Foreground="#A6ADC8" TextWrapping="Wrap" Margin="0,2,0,0"/>
                     </StackPanel>
                     <Border Grid.Column="1" Background="#45475A" CornerRadius="6" Padding="4,0" Margin="12,0,0,0" VerticalAlignment="Center">
@@ -241,9 +241,9 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                        <TextBlock Text="Block delay (seconds)"
+                        <TextBlock Text="{DynamicResource Str_Cfg_Delay_Title}"
                                    FontSize="13" FontWeight="SemiBold" Foreground="#CDD6F4"/>
-                        <TextBlock Text="Wait N seconds after detection before blocking. 0 = block immediately."
+                        <TextBlock Text="{DynamicResource Str_Cfg_Delay_Desc}"
                                    FontSize="11" Foreground="#A6ADC8" TextWrapping="Wrap" Margin="0,2,0,0"/>
                     </StackPanel>
                     <Border Grid.Column="1" Background="#45475A" CornerRadius="6" Padding="4,0" Margin="12,0,0,0" VerticalAlignment="Center">

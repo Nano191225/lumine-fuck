@@ -1,0 +1,51 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:s="clr-namespace:System;assembly=mscorlib">
+
+    <!-- Header -->
+    <s:String x:Key="Str_Protection">Protection</s:String>
+    <s:String x:Key="Str_Status_Stopped">Stopped</s:String>
+    <s:String x:Key="Str_Status_Active">Active — Monitoring</s:String>
+
+    <!-- Stats cards -->
+    <s:String x:Key="Str_BlockedIPs">Blocked IPs</s:String>
+    <s:String x:Key="Str_ScannedIPs">Scanned IPs</s:String>
+    <s:String x:Key="Str_BlockedDomains">Blocked Domains</s:String>
+
+    <!-- Tab headers -->
+    <s:String x:Key="Str_Tab_Blocked">🚫 Blocked Connections</s:String>
+    <s:String x:Key="Str_Tab_ConnLog">🌐 Connection Log</s:String>
+    <s:String x:Key="Str_Tab_Activity">📋 Activity Log</s:String>
+
+    <!-- Table column headers -->
+    <s:String x:Key="Str_Col_Time">Time</s:String>
+    <s:String x:Key="Str_Col_IPAddress">IP Address</s:String>
+    <s:String x:Key="Str_Col_Hostname">Hostname</s:String>
+    <s:String x:Key="Str_Col_MatchedDomain">Matched Domain</s:String>
+    <s:String x:Key="Str_Col_rDNS">rDNS</s:String>
+    <s:String x:Key="Str_Col_ISP">ISP</s:String>
+
+    <!-- Config window -->
+    <s:String x:Key="Str_Cfg_Title">Config</s:String>
+    <s:String x:Key="Str_Cfg_Domains_Header">🌐 Blocked Domain Suffixes</s:String>
+    <s:String x:Key="Str_Cfg_Domains_Desc">IPs whose rDNS hostname ends with these suffixes will be blocked.</s:String>
+    <s:String x:Key="Str_Cfg_IPs_Header">🔒 Blocked IP Addresses / CIDR</s:String>
+    <s:String x:Key="Str_Cfg_IPs_Desc">Block specific IPs or ranges (e.g. 1.2.3.4 or 10.0.0.0/24). No rDNS needed.</s:String>
+    <s:String x:Key="Str_Cfg_Advanced">⚙️ Advanced</s:String>
+    <s:String x:Key="Str_Cfg_Add">+ Add</s:String>
+    <s:String x:Key="Str_Cfg_Remove">— Remove</s:String>
+    <s:String x:Key="Str_Cfg_Notify_Title">Show notifications when blocked</s:String>
+    <s:String x:Key="Str_Cfg_Notify_Desc">Display a desktop notification each time a connection is blocked.</s:String>
+    <s:String x:Key="Str_Cfg_Unblock_Title">Auto-unblock after (seconds)</s:String>
+    <s:String x:Key="Str_Cfg_Unblock_Desc">Automatically remove firewall rule after N seconds. 0 = never unblock.</s:String>
+    <s:String x:Key="Str_Cfg_Delay_Title">Block delay (seconds)</s:String>
+    <s:String x:Key="Str_Cfg_Delay_Desc">Wait N seconds after detection before blocking. 0 = block immediately.</s:String>
+
+    <!-- Buttons -->
+    <s:String x:Key="Str_Btn_Config">⚙️ Config</s:String>
+    <s:String x:Key="Str_Btn_ClearRules">🗑️ Clear Rules</s:String>
+    <s:String x:Key="Str_Btn_ClearLog">🧹 Clear Log</s:String>
+    <s:String x:Key="Str_Btn_Language">🌐 Language</s:String>
+    <s:String x:Key="Str_Btn_CheckUpdates">🔄 Check Updates</s:String>
+
+</ResourceDictionary>

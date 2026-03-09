@@ -18,6 +18,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private readonly FirewallManager _firewallManager;
     private readonly BlockList _blockList;
     private readonly UpdateService _updateService;
+    private readonly IspLookupService _ispLookupService;
     private readonly Dispatcher _dispatcher;
     private CancellationTokenSource? _processingCts;
     private Task? _processingTask;
@@ -30,7 +31,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private bool _isEnabled;
 
     [ObservableProperty]
-    private string _statusText = "Stopped";
+    private string _statusText = "Stopped"; // updated on language change via LocService
 
     [ObservableProperty]
     private string _statusColor = "#FF6B6B"; // Red
@@ -60,6 +61,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private bool _isUpdating;
 
     public ObservableCollection<BlockedEntry> BlockedEntries { get; } = new();
+    public ObservableCollection<ConnectionLogEntry> ConnectionLogEntries { get; } = new();
     public ObservableCollection<string> LogEntries { get; } = new();
 
     // --- Constructor ---
@@ -73,6 +75,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _firewallManager = new FirewallManager();
         _blockList = new BlockList();
         _updateService = new UpdateService();
+        _ispLookupService = new IspLookupService();
 
         // Wire up logging
         _connectionMonitor.OnLog += AddLog;
@@ -84,7 +87,15 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // Load settings
         _blockList.Load();
         DomainCount = _blockList.Domains.Count + _blockList.BlockedIps.Count;
-        BlockedCount = _firewallManager.BlockedCount;
+        BlockedCount = 0;
+
+        // Language change — update dynamic status text
+        LocService.LanguageChanged += () =>
+        {
+            StatusText = IsEnabled
+                ? LocService.Get("Str_Status_Active")
+                : LocService.Get("Str_Status_Stopped");
+        };
 
         // System tray notification icon
         try
@@ -115,6 +126,29 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _ = CheckForUpdatesAsync();
     }
 
+    [RelayCommand]
+    private void ToggleLanguage()
+    {
+        LocService.Toggle();
+    }
+
+    [RelayCommand]
+    private void CopyConnectionIp(ConnectionLogEntry? entry)
+    {
+        if (entry is null) return;
+        try { System.Windows.Clipboard.SetText(entry.IpAddressString); }
+        catch { }
+    }
+
+    [RelayCommand]
+    private void AddConnectionIpToBlockList(ConnectionLogEntry? entry)
+    {
+        if (entry is null) return;
+        _blockList.AddIp(entry.IpAddressString);
+        DomainCount = _blockList.Domains.Count + _blockList.BlockedIps.Count;
+        AddLog($"Added {entry.IpAddressString} to block list.");
+    }
+
     // --- Commands ---
 
     partial void OnIsEnabledChanged(bool value)
@@ -136,7 +170,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     {
         _dispatcher.Invoke(() =>
         {
-            BlockedEntries.Clear();
+            ConnectionLogEntries.Clear();
             LogEntries.Clear();
         });
     }
@@ -148,9 +182,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _connectionMonitor.ClearCache();
         _dnsResolver.ClearCache();
         ClearUnblockQueue();
-        BlockedCount = 0;
         ScannedCount = 0;
-        _dispatcher.Invoke(() => BlockedEntries.Clear());
+        _dispatcher.Invoke(() =>
+        {
+            BlockedEntries.Clear();
+            ConnectionLogEntries.Clear();
+            BlockedCount = 0;
+        });
         AddLog("All firewall rules cleared and caches reset.");
     }
 
@@ -198,8 +236,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
     {
         _processingCts = new CancellationTokenSource();
         _connectionMonitor.Start();
-        _processingTask = Task.Run(() => ProcessNewIpsAsync(_processingCts.Token));        _unblockTimer.Start();
-        StatusText = "Active — Monitoring";
+        _processingTask = Task.Run(() => ProcessNewIpsAsync(_processingCts.Token));
+        _unblockTimer.Start();
+        StatusText = LocService.Get("Str_Status_Active");
         StatusColor = "#51CF66"; // Green
         AddLog("Protection enabled.");
     }
@@ -211,18 +250,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _processingTask = null;
         _unblockTimer.Stop();
 
-        // Clear all firewall rules on stop
-        _firewallManager.UnblockAll();
-        _connectionMonitor.ClearCache();
-        _dnsResolver.ClearCache();
-        ClearUnblockQueue();
-        BlockedCount = 0;
-        ScannedCount = 0;
-        _dispatcher.Invoke(() => BlockedEntries.Clear());
-
-        StatusText = "Stopped";
+        StatusText = LocService.Get("Str_Status_Stopped");
         StatusColor = "#FF6B6B"; // Red
-        AddLog("Protection disabled. All rules cleared.");
+        AddLog("Protection disabled.");
     }
 
     private async Task ProcessNewIpsAsync(CancellationToken ct)
@@ -270,17 +300,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
     {
         _dispatcher.Invoke(() => ScannedCount++);
 
-        // 1. Check IP-based block list first (fast, no DNS needed)
-        if (_blockList.MatchesBlockedIp(ip))
-        {
-            string matchedRule = _blockList.GetMatchedIpRule(ip) ?? ip.ToString();
-            AddLog($"🚫 Blocking {ip} — matched IP rule: {matchedRule}");
-            BlockAndRecord(ip, null, $"IP: {matchedRule}");
-            return;
-        }
-
-        // 2. Resolve rDNS and check domain-based block list
-        string? hostname;
+        // Resolve rDNS (needed for domain check and connection log)
+        string? hostname = null;
         try
         {
             hostname = await _dnsResolver.ResolveAsync(ip);
@@ -288,9 +309,21 @@ public partial class MainViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             AddLog($"rDNS exception for {ip}: {ex.GetType().Name}: {ex.Message}");
+        }
+
+        // Record to Connection Log with ISP lookup (fire-and-forget, non-blocking)
+        _ = AddConnectionLogEntryAsync(ip, hostname);
+
+        // 1. Check IP-based block list
+        if (_blockList.MatchesBlockedIp(ip))
+        {
+            string matchedRule = _blockList.GetMatchedIpRule(ip) ?? ip.ToString();
+            AddLog($"🚫 Blocking {ip} — matched IP rule: {matchedRule}");
+            BlockAndRecord(ip, hostname, $"IP: {matchedRule}");
             return;
         }
 
+        // 2. Check domain-based block list
         var domains = _blockList.Domains;
         if (DnsResolver.MatchesBlockedDomain(hostname, domains))
         {
@@ -304,6 +337,28 @@ public partial class MainViewModel : ObservableObject, IDisposable
         {
             AddLog($"✓ {ip} → {hostname ?? "(no rDNS)"} — not blocked");
         }
+    }
+
+    private async Task AddConnectionLogEntryAsync(IPAddress ip, string? hostname)
+    {
+        string? isp = null;
+        try { isp = await _ispLookupService.LookupAsync(ip); }
+        catch { }
+
+        var entry = new ConnectionLogEntry
+        {
+            Timestamp = DateTime.Now,
+            IpAddress = ip,
+            Rdns = hostname,
+            Isp = isp
+        };
+
+        _dispatcher.Invoke(() =>
+        {
+            ConnectionLogEntries.Insert(0, entry);
+            while (ConnectionLogEntries.Count > 1000)
+                ConnectionLogEntries.RemoveAt(ConnectionLogEntries.Count - 1);
+        });
     }
 
     // --- Auto-unblock queue ---
@@ -345,17 +400,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
             _connectionMonitor.RemoveFromCache(item.Ip);
             _dnsResolver.RemoveFromCache(item.Ip);
             AddLog($"\u2705 Auto-unblocked {item.Ip}");
-            _dispatcher.Invoke(() =>
-            {
-                BlockedCount = _firewallManager.BlockedCount;
-                // Remove matching entries from blocked connections list
-                var ipStr = item.Ip.ToString();
-                for (int i = BlockedEntries.Count - 1; i >= 0; i--)
-                {
-                    if (BlockedEntries[i].IpAddressString == ipStr)
-                        BlockedEntries.RemoveAt(i);
-                }
-            });
         }
     }
 
@@ -400,7 +444,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _dispatcher.Invoke(() =>
         {
             BlockedEntries.Insert(0, entry);
-            BlockedCount = _firewallManager.BlockedCount;
+            BlockedCount = BlockedEntries.Count;
             while (BlockedEntries.Count > 1000)
                 BlockedEntries.RemoveAt(BlockedEntries.Count - 1);
         });
