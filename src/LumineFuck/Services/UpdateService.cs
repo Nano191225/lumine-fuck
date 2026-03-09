@@ -21,7 +21,7 @@ public sealed class UpdateService
 
     public UpdateService()
     {
-        _updateManager = new UpdateManager(new GithubSource(RepoUrl, null, false));
+        _updateManager = new UpdateManager(new GithubSource(RepoUrl, null, true));
     }
 
     /// <summary>
