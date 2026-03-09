@@ -173,6 +173,7 @@ public sealed class FirewallManager : IDisposable
                 rule.Direction = direction;
                 rule.Protocol = protocol;
                 rule.RemoteAddresses = remoteAddresses;
+                rule.Profiles = 7; // Domain (1) | Private (2) | Public (4) = all profiles
                 rule.Enabled = true;
 
                 rules.Add(rule);
