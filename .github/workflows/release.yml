@@ -67,21 +67,6 @@ jobs:
             --mainExe LumineFuck.exe `
             --outputDir releases/
 
-      - name: Build Inno Setup installer
-        uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
-        with:
-          path: src/Installer/setup.iss
-          options: /DAppVersion=${{ steps.version.outputs.VERSION }}
-
-      - name: Sign installer
-        if: env.CERTIFICATE_PFX != ''
-        run: |
-          $signtool = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits" -Recurse -Filter "signtool.exe" | Select-Object -First 1
-          $installers = Get-ChildItem -Path "Output" -Filter "*.exe"
-          foreach ($installer in $installers) {
-            & $signtool.FullName sign /f "$env:RUNNER_TEMP\cert.pfx" /p $env:CERTIFICATE_PASSWORD /fd sha256 /tr http://timestamp.digicert.com /td sha256 $installer.FullName
-          }
-
       - name: Clean up certificate
         if: always()
         run: Remove-Item "$env:RUNNER_TEMP\cert.pfx" -ErrorAction SilentlyContinue
@@ -93,5 +78,4 @@ jobs:
             releases/*.exe
             releases/*.nupkg
             releases/*.json
-            Output/*.exe
           generate_release_notes: true

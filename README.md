@@ -113,7 +113,6 @@ dotnet publish src/LumineFuck/LumineFuck.csproj -c Release -r win-x64 --self-con
 | rDNS | DnsClient.NET — PTR queries via Google/Cloudflare DNS |
 | Firewall | Windows Firewall COM API (`HNetCfg.FwPolicy2`) |
 | Auto-update | Velopack (GitHub Releases) |
-| Installer | Inno Setup 6 |
 | CI/CD | GitHub Actions |
 
 ## License

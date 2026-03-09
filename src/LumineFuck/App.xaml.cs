@@ -3,7 +3,6 @@ using System.Security.Principal;
 using System.Windows;
 using Microsoft.Toolkit.Uwp.Notifications;
 using Microsoft.Win32;
-using Velopack;
 
 namespace LumineFuck;
 
@@ -11,16 +10,6 @@ public partial class App : Application
 {
     protected override void OnStartup(StartupEventArgs e)
     {
-        // Velopack must be initialized before anything else
-        try
-        {
-            VelopackApp.Build().Run();
-        }
-        catch
-        {
-            // Not installed via Velopack (e.g. debug mode) — ignore
-        }
-
         // Register toast notification COM activator (required for unpackaged Win32 apps)
         try { ToastNotificationManagerCompat.OnActivated += _ => { }; }
         catch { }
