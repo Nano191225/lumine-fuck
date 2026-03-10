@@ -30,9 +30,11 @@ jobs:
         id: version
         shell: pwsh
         run: |
-          $ver = "${{ github.ref_name }}" -replace '^v', ''
+          $rawTag = "${{ github.event.release.tag_name }}"
+          if ([string]::IsNullOrEmpty($rawTag)) { $rawTag = "${{ github.ref_name }}" }
+          $ver = $rawTag -replace '^v', ''
           if ([string]::IsNullOrEmpty($ver)) {
-            Write-Error "Could not determine version from ref '${{ github.ref_name }}'"
+            Write-Error "Could not determine version from tag '$rawTag'"
             exit 1
           }
           "VERSION=$ver" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
@@ -41,7 +43,9 @@ jobs:
       - name: Publish application
         shell: pwsh
         run: |
-          $ver = "${{ github.ref_name }}" -replace '^v', ''
+          $rawTag = "${{ github.event.release.tag_name }}"
+          if ([string]::IsNullOrEmpty($rawTag)) { $rawTag = "${{ github.ref_name }}" }
+          $ver = $rawTag -replace '^v', ''
           dotnet publish src/LumineFuck/LumineFuck.csproj `
             -c Release `
             -r win-x64 `
@@ -69,7 +73,9 @@ jobs:
         shell: pwsh
         run: |
           dotnet tool install -g vpk
-          $ver = "${{ github.ref_name }}" -replace '^v', ''
+          $rawTag = "${{ github.event.release.tag_name }}"
+          if ([string]::IsNullOrEmpty($rawTag)) { $rawTag = "${{ github.ref_name }}" }
+          $ver = $rawTag -replace '^v', ''
           $signtool = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits" -Recurse -Filter "signtool.exe" | Select-Object -First 1
           vpk download github `
             --outputDir releases/ `
