@@ -66,7 +66,7 @@ public sealed class ConnectionMonitor : IDisposable
 
     // --- Fields ---
     private readonly ConcurrentDictionary<string, byte> _seenIps = new();
-    private readonly Channel<IPAddress> _newIpChannel;
+    private readonly Channel<(IPAddress, ushort)> _newIpChannel;
     private CancellationTokenSource? _cts;
     private Task? _tcpPollingTask;
     private Task? _udpTableRefreshTask;
@@ -81,7 +81,7 @@ public sealed class ConnectionMonitor : IDisposable
     private int _tcpDetected;
     private int _udpDetected;
 
-    public ChannelReader<IPAddress> NewIpReader => _newIpChannel.Reader;
+    public ChannelReader<(IPAddress, ushort)> NewIpReader => _newIpChannel.Reader;
 
     public bool IsRunning => _tcpPollingTask is not null && !_tcpPollingTask.IsCompleted;
 
@@ -90,7 +90,7 @@ public sealed class ConnectionMonitor : IDisposable
     public ConnectionMonitor(TimeSpan? pollInterval = null)
     {
         _pollInterval = pollInterval ?? TimeSpan.FromSeconds(1);
-        _newIpChannel = Channel.CreateUnbounded<IPAddress>(new UnboundedChannelOptions
+        _newIpChannel = Channel.CreateUnbounded<(IPAddress, ushort)>(new UnboundedChannelOptions
         {
             SingleReader = false,
             SingleWriter = false  // Multiple writers: TCP poll thread + Npcap capture threads
@@ -361,7 +361,7 @@ public sealed class ConnectionMonitor : IDisposable
             var remoteStr = remoteIp.ToString();
             if (_seenIps.TryAdd(remoteStr, 0))
             {
-                _newIpChannel.Writer.TryWrite(remoteIp);
+                _newIpChannel.Writer.TryWrite((remoteIp, localPort));
                 Interlocked.Increment(ref _udpDetected);
                 OnLog?.Invoke($"[UDP/MC] New IP: {remoteIp} (local port: {localPort}, PID: {pid})");
             }
@@ -427,12 +427,13 @@ public sealed class ConnectionMonitor : IDisposable
 
                 var ip = new IPAddress(remoteAddr);
                 var ipStr = ip.ToString();
+                ushort localPort = (ushort)IPAddress.NetworkToHostOrder((short)row.dwLocalPort);
 
                 if (_seenIps.TryAdd(ipStr, 0))
                 {
-                    _newIpChannel.Writer.TryWrite(ip);
+                    _newIpChannel.Writer.TryWrite((ip, localPort));
                     _tcpDetected++;
-                    OnLog?.Invoke($"[TCP/MC] New IP: {ipStr} (PID: {row.dwOwningPid})");
+                    OnLog?.Invoke($"[TCP/MC] New IP: {ipStr} (local port: {localPort}, PID: {row.dwOwningPid})");
                 }
             }
         }

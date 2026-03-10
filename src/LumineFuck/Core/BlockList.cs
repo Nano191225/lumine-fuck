@@ -95,7 +95,7 @@ public sealed class BlockList
         }
     }
 
-    private bool _blockVpn = false;
+    private bool _blockVpn = true;
     /// <summary>
     /// When true, connections from VPN/proxy/hosting IPs (non-Microsoft) are automatically blocked.
     /// </summary>
@@ -382,7 +382,7 @@ public sealed class BlockList
         public int UnblockAfterSeconds { get; set; } = 10;
         public int BlockDelaySeconds { get; set; } = 5;
         public bool ShowNotifications { get; set; } = true;
-        public bool BlockVpn { get; set; } = false;
+        public bool BlockVpn { get; set; } = true;
     }
 
     // --- IP Range helper ---

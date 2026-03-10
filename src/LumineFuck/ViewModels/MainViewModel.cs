@@ -264,7 +264,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
         try
         {
-            await foreach (var ip in _connectionMonitor.NewIpReader.ReadAllAsync(ct))
+            await foreach (var (ip, localPort) in _connectionMonitor.NewIpReader.ReadAllAsync(ct))
             {
                 await semaphore.WaitAsync(ct);
 
@@ -272,7 +272,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
                 {
                     try
                     {
-                        await ProcessSingleIpAsync(ip);
+                        await ProcessSingleIpAsync(ip, localPort);
                     }
                     catch (Exception ex)
                     {
@@ -296,8 +296,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
             await Task.WhenAll(activeTasks).ConfigureAwait(false);
     }
 
-    private async Task ProcessSingleIpAsync(IPAddress ip)
+    private async Task ProcessSingleIpAsync(IPAddress ip, ushort localPort)
     {
+        // local port が 0 の場合は Minecraft プロセスに紐づかない接続 → すべてスキップ
+        if (localPort == 0) return;
+
         _dispatcher.Invoke(() => ScannedCount++);
 
         // Resolve rDNS (needed for domain check and connection log)
