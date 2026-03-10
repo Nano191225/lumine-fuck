@@ -28,36 +28,48 @@ jobs:
 
       - name: Set version (strip leading 'v')
         id: version
+        shell: pwsh
         run: |
           $ver = "${{ github.ref_name }}" -replace '^v', ''
-          echo "VERSION=$ver" >> $env:GITHUB_OUTPUT
+          if ([string]::IsNullOrEmpty($ver)) {
+            Write-Error "Could not determine version from ref '${{ github.ref_name }}'"
+            exit 1
+          }
+          "VERSION=$ver" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Write-Host "Version: $ver"
 
       - name: Publish application
+        shell: pwsh
         run: |
+          $ver = "${{ github.ref_name }}" -replace '^v', ''
           dotnet publish src/LumineFuck/LumineFuck.csproj `
             -c Release `
             -r win-x64 `
             --self-contained true `
             -p:PublishSingleFile=true `
             -p:IncludeNativeLibrariesForSelfExtract=true `
-            -p:Version=${{ steps.version.outputs.VERSION }} `
+            "-p:Version=$ver" `
             -o publish/
 
       - name: Decode certificate
         if: env.CERTIFICATE_PFX != ''
+        shell: pwsh
         run: |
           $certBytes = [Convert]::FromBase64String($env:CERTIFICATE_PFX)
           [IO.File]::WriteAllBytes("$env:RUNNER_TEMP\cert.pfx", $certBytes)
 
       - name: Sign executable
         if: env.CERTIFICATE_PFX != ''
+        shell: pwsh
         run: |
           $signtool = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits" -Recurse -Filter "signtool.exe" | Select-Object -First 1
           & $signtool.FullName sign /f "$env:RUNNER_TEMP\cert.pfx" /p $env:CERTIFICATE_PASSWORD /fd sha256 /tr http://timestamp.digicert.com /td sha256 publish/LumineFuck.exe
 
       - name: Build Velopack release
+        shell: pwsh
         run: |
           dotnet tool install -g vpk
+          $ver = "${{ github.ref_name }}" -replace '^v', ''
           $signtool = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits" -Recurse -Filter "signtool.exe" | Select-Object -First 1
           vpk download github `
             --outputDir releases/ `
@@ -66,7 +78,7 @@ jobs:
           if ($env:CERTIFICATE_PFX -ne '') {
             vpk pack `
               --packId LumineFuck `
-              --packVersion ${{ steps.version.outputs.VERSION }} `
+              --packVersion $ver `
               --packDir publish/ `
               --mainExe LumineFuck.exe `
               --outputDir releases/ `
@@ -74,7 +86,7 @@ jobs:
           } else {
             vpk pack `
               --packId LumineFuck `
-              --packVersion ${{ steps.version.outputs.VERSION }} `
+              --packVersion $ver `
               --packDir publish/ `
               --mainExe LumineFuck.exe `
               --outputDir releases/
