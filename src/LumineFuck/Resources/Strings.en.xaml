@@ -20,8 +20,8 @@
     <!-- Table column headers -->
     <s:String x:Key="Str_Col_Time">Time</s:String>
     <s:String x:Key="Str_Col_IPAddress">IP Address</s:String>
-    <s:String x:Key="Str_Col_Hostname">Hostname</s:String>
-    <s:String x:Key="Str_Col_MatchedDomain">Matched Domain</s:String>
+    <s:String x:Key="Str_Col_Hostname">rDNS</s:String>
+    <s:String x:Key="Str_Col_MatchedDomain">Reason</s:String>
     <s:String x:Key="Str_Col_rDNS">rDNS</s:String>
     <s:String x:Key="Str_Col_ISP">ISP</s:String>
 

@@ -20,8 +20,8 @@
     <!-- Table column headers -->
     <s:String x:Key="Str_Col_Time">時刻</s:String>
     <s:String x:Key="Str_Col_IPAddress">IPアドレス</s:String>
-    <s:String x:Key="Str_Col_Hostname">ホスト名</s:String>
-    <s:String x:Key="Str_Col_MatchedDomain">マッチしたドメイン</s:String>
+    <s:String x:Key="Str_Col_Hostname">rDNS</s:String>
+    <s:String x:Key="Str_Col_MatchedDomain">理由</s:String>
     <s:String x:Key="Str_Col_rDNS">逆引きDNS</s:String>
     <s:String x:Key="Str_Col_ISP">プロバイダ</s:String>
 

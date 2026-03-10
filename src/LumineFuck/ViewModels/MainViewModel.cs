@@ -343,13 +343,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // 3. VPN block (if enabled, non-Microsoft only)
         if (_blockList.BlockVpn && apiResult is { IsVpnLikely: true, IsMicrosoft: false })
         {
-            var ispName = apiResult.Org ?? "VPN/Hosting";
+            var ispName = apiResult.Isp ?? apiResult.Org ?? "VPN/Hosting";
             AddLog($"🚫 Blocking {ip} — VPN/hosting detected ({ispName})");
             BlockAndRecord(ip, hostname, $"VPN: {ispName}");
             return;
         }
 
-        AddLog($"✓ {ip} → {hostname ?? "(no rDNS)"} [{apiResult?.Org ?? "?"}] — not blocked");
+        AddLog($"✓ {ip} → {hostname ?? "(no rDNS)"} [{apiResult?.Isp ?? apiResult?.Org ?? "?"}] — not blocked");
     }
 
     // --- Auto-unblock queue ---
@@ -361,7 +361,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             Timestamp = DateTime.Now,
             IpAddress = ip,
             Rdns = hostname,
-            Isp = apiResult?.Org,
+            Isp = apiResult?.Isp ?? apiResult?.Org,
             IsVpn = apiResult?.IsVpnLikely == true && apiResult?.IsMicrosoft == false
         };
 

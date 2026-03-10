@@ -28,15 +28,16 @@ public sealed class IspLookupService
 
         try
         {
-            // org, proxy, hosting are all available on the free HTTP tier
+            // isp and org are available on the free HTTP tier; proxy and hosting require a pro key
             var json = await _http.GetStringAsync(
-                $"http://ip-api.com/json/{ipStr}?fields=org,proxy,hosting");
+                $"http://ip-api.com/json/{ipStr}?fields=isp,org,proxy,hosting");
 
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
 
             var result = new IpApiResult
             {
+                Isp = root.TryGetProperty("isp", out var ispEl) ? ispEl.GetString() : null,
                 Org = root.TryGetProperty("org", out var orgEl) ? orgEl.GetString() : null,
                 IsProxy = root.TryGetProperty("proxy", out var proxyEl) && proxyEl.GetBoolean(),
                 IsHosting = root.TryGetProperty("hosting", out var hostingEl) && hostingEl.GetBoolean(),
