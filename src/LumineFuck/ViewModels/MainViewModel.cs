@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Net;
 using System.Windows;
 using System.Windows.Threading;
@@ -24,6 +25,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private Task? _processingTask;
     private readonly System.Timers.Timer _unblockTimer;
     private System.Windows.Forms.NotifyIcon? _notifyIcon;
+    private StreamWriter? _logWriter;
+    private readonly object _logFileLock = new();
 
     // --- Observable Properties ---
 
@@ -60,6 +63,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private bool _isUpdating;
 
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(TestFirewallCommand))]
+    private bool _isFirewallTesting;
+
     public ObservableCollection<BlockedEntry> BlockedEntries { get; } = new();
     public ObservableCollection<ConnectionLogEntry> ConnectionLogEntries { get; } = new();
     public ObservableCollection<string> LogEntries { get; } = new();
@@ -83,6 +90,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _firewallManager.OnLog += AddLog;
         _blockList.OnLog += AddLog;
         _updateService.OnLog += AddLog;
+
+        // Wire up post-block MS relay detection
+        _connectionMonitor.OnSuspiciousRelayDetected += OnSuspiciousRelayDetected;
 
         // Load settings
         _blockList.Load();
@@ -124,6 +134,19 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
         // Check for updates in background
         _ = CheckForUpdatesAsync();
+
+        // Initialize file logger
+        try
+        {
+            var logDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "LumineFuck", "logs");
+            Directory.CreateDirectory(logDir);
+            var logPath = Path.Combine(logDir, $"lumine-{DateTime.Now:yyyy-MM-dd}.log");
+            _logWriter = new StreamWriter(logPath, append: true, System.Text.Encoding.UTF8) { AutoFlush = true };
+            _logWriter.WriteLine($"[{DateTime.Now:HH:mm:ss}] === LumineFuck session started ===");
+        }
+        catch { /* log file unavailable — UI log only */ }
     }
 
     [RelayCommand]
@@ -200,6 +223,32 @@ public partial class MainViewModel : ObservableObject, IDisposable
         window.ShowDialog();
         DomainCount = _blockList.Domains.Count + _blockList.BlockedIps.Count;
     }
+
+    [RelayCommand(CanExecute = nameof(CanTestFirewall))]
+    private async Task TestFirewallAsync()
+    {
+        IsFirewallTesting = true;
+        AddLog("🧪 Firewall self-test started...");
+        try
+        {
+            var (ok, lines) = await _firewallManager.RunFirewallTestAsync();
+            foreach (var line in lines)
+                AddLog(line);
+            AddLog(ok
+                ? "✅ Firewall self-test PASSED — protection is functioning correctly."
+                : "❌ Firewall self-test FAILED — check the Activity Log for details.");
+        }
+        catch (Exception ex)
+        {
+            AddLog($"❌ Firewall test error: {ex.Message}");
+        }
+        finally
+        {
+            IsFirewallTesting = false;
+        }
+    }
+
+    private bool CanTestFirewall() => !IsFirewallTesting;
 
     [RelayCommand]
     private async Task CheckForUpdatesAsync()
@@ -418,10 +467,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     // --- Helpers ---
 
-    private async void BlockAndRecord(IPAddress ip, string? hostname, string matchedRule)
+    private async void BlockAndRecord(IPAddress ip, string? hostname, string matchedRule, bool skipDelay = false)
     {
-        // Delay before blocking if configured
-        int delaySeconds = _blockList.BlockDelaySeconds;
+        // Delay before blocking if configured (skipped for MS relay auto-blocks)
+        int delaySeconds = skipDelay ? 0 : _blockList.BlockDelaySeconds;
         if (delaySeconds > 0)
         {
             AddLog($"\u23f3 Delaying block of {ip} for {delaySeconds}s...");
@@ -430,6 +479,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
         _firewallManager.BlockIp(ip);
         ScheduleUnblock(ip);
+
+        // Activate post-block relay watch for non-Microsoft IPs
+        // (Microsoft IPs are whitelisted and won't trigger spurious watches)
+        bool isMsBlock = matchedRule.StartsWith("MS Relay", StringComparison.Ordinal);
+        if (!isMsBlock && _blockList.BlockMsRelay)
+            _connectionMonitor.NotifyAttackerBlocked(_blockList.RelayWatchSeconds, _blockList.RelayFreqThreshold);
 
         if (_blockList.ShowNotifications)
         {
@@ -466,12 +521,47 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private void AddLog(string message)
     {
         var timestamped = $"[{DateTime.Now:HH:mm:ss}] {message}";
+
+        // Write to file (thread-safe)
+        if (_logWriter != null)
+        {
+            lock (_logFileLock)
+            {
+                try { _logWriter.WriteLine(timestamped); }
+                catch { /* ignore file errors */ }
+            }
+        }
+
         _dispatcher.Invoke(() =>
         {
             LogEntries.Insert(0, timestamped);
             while (LogEntries.Count > 500)
                 LogEntries.RemoveAt(LogEntries.Count - 1);
         });
+    }
+
+    /// <summary>
+    /// Called when ConnectionMonitor detects a high-frequency IP during post-block watch.
+    /// If the IP belongs to Microsoft (TURN relay), blocks it immediately.
+    /// </summary>
+    private async void OnSuspiciousRelayDetected(IPAddress ip)
+    {
+        if (!_blockList.BlockMsRelay) return;
+        if (_firewallManager.IsBlocked(ip)) return;
+
+        IpApiResult? apiResult = null;
+        try { apiResult = await _ispLookupService.LookupAsync(ip); } catch { }
+
+        if (apiResult?.IsMicrosoft == true)
+        {
+            var ispName = apiResult.Isp ?? apiResult.Org ?? "Microsoft/Azure";
+            AddLog($"🚫 Blocking MS relay {ip} [{ispName}] — high-freq traffic detected after attacker block");
+            BlockAndRecord(ip, null, "MS Relay (post-block)", skipDelay: true);
+        }
+        else
+        {
+            AddLog($"[Watch] High-freq IP {ip} is not Microsoft ({apiResult?.Isp ?? "?"}) — skipping auto-block");
+        }
     }
 
     public void Dispose()
@@ -482,5 +572,14 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _unblockTimer.Dispose();
         _processingCts?.Dispose();
         _notifyIcon?.Dispose();
+        lock (_logFileLock)
+        {
+            try
+            {
+                _logWriter?.WriteLine($"[{DateTime.Now:HH:mm:ss}] === LumineFuck session ended ===");
+                _logWriter?.Dispose();
+            }
+            catch { }
+        }
     }
 }

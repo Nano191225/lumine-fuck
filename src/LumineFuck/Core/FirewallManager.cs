@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Sockets;
 using System.Windows.Threading;
 
 namespace LumineFuck.Core;
@@ -36,6 +37,11 @@ public sealed class FirewallManager : IDisposable
     public int BlockedCount
     {
         get { lock (_lock) return _blockedIps.Count; }
+    }
+
+    public bool IsBlocked(IPAddress ip)
+    {
+        lock (_lock) return _blockedIps.Contains(ip.ToString());
     }
 
     public FirewallManager(Dispatcher dispatcher)
@@ -257,5 +263,151 @@ public sealed class FirewallManager : IDisposable
     public void Dispose()
     {
         // COM objects are released by GC
+    }
+
+    /// <summary>
+    /// Runs a self-test to verify the firewall integration is functioning.
+    /// Step 1: Confirms the COM interface is available.
+    /// Step 2: Confirms Windows Firewall is enabled on the Private profile.
+    /// Step 3: Creates a temporary block rule, verifies it exists, then removes it.
+    /// Step 4 (best-effort): If 1.1.1.1:80 is reachable without a rule, confirms
+    ///         it becomes unreachable after a temporary block rule is added.
+    /// </summary>
+    public async Task<(bool Ok, List<string> Lines)> RunFirewallTestAsync()
+    {
+        const string testIp = "1.1.1.1";
+        const int testPort = 80;
+        const string testRuleName = "LumineFW_SelfTest";
+
+        var lines = new List<string>();
+        bool ok = true;
+
+        // 1. COM interface
+        if (_policy == null)
+            return (false, new List<string> { "❌ Firewall COM interface is not available. Run LumineFuck as administrator." });
+        lines.Add("✓ Firewall COM interface: available");
+
+        // 2. Windows Firewall enabled on Private profile?
+        bool fwEnabled = false;
+        await _dispatcher.InvokeAsync(() =>
+        {
+            try { fwEnabled = (bool)_policy.FirewallEnabled[2]; } catch { }
+        });
+        if (!fwEnabled)
+        {
+            lines.Add("❌ Windows Firewall is DISABLED on the Private profile — enable it in Windows Security.");
+            ok = false;
+        }
+        else
+        {
+            lines.Add("✓ Windows Firewall: enabled (Private profile)");
+        }
+
+        // 3. Create a temporary test rule and verify it
+        bool ruleVerified = false;
+        await _dispatcher.InvokeAsync(() =>
+        {
+            try
+            {
+                var ruleType = Type.GetTypeFromProgID("HNetCfg.FWRule");
+                if (ruleType == null) return;
+                dynamic rule = Activator.CreateInstance(ruleType)!;
+                rule.Name = testRuleName;
+                rule.Description = "LumineFuck self-test — temporary, will be removed";
+                rule.Grouping = RuleGroupName;
+                rule.Action = NET_FW_ACTION_BLOCK;
+                rule.Direction = NET_FW_RULE_DIR_OUT;
+                rule.Protocol = NET_FW_IP_PROTOCOL_TCP;
+                rule.RemoteAddresses = $"{testIp}/255.255.255.255";
+                rule.Profiles = 7;
+                rule.Enabled = true;
+                _policy.Rules.Add(rule);
+
+                // Verify it was persisted
+                dynamic? found = null;
+                try { found = _policy.Rules.Item(testRuleName); } catch { }
+                ruleVerified = (found != null && (bool)found.Enabled);
+            }
+            catch { ruleVerified = false; }
+            finally
+            {
+                try { _policy.Rules.Remove(testRuleName); } catch { }
+            }
+        });
+
+        if (!ruleVerified)
+        {
+            lines.Add("❌ Failed to create or verify a test firewall rule — check administrator privileges.");
+            ok = false;
+        }
+        else
+        {
+            lines.Add("✓ Firewall rule creation/verification: OK");
+        }
+
+        // 4. Best-effort connectivity block test
+        bool baselineReachable = await TryConnectAsync(testIp, testPort, msTimeout: 1500);
+        if (!baselineReachable)
+        {
+            lines.Add($"⚠ {testIp}:{testPort} is not reachable (no internet?) — skipping live block test.");
+        }
+        else
+        {
+            lines.Add($"✓ Baseline: {testIp}:{testPort} is reachable without a block rule");
+
+            // Add block rule
+            await _dispatcher.InvokeAsync(() =>
+            {
+                try
+                {
+                    var ruleType = Type.GetTypeFromProgID("HNetCfg.FWRule");
+                    if (ruleType == null) return;
+                    dynamic rule = Activator.CreateInstance(ruleType)!;
+                    rule.Name = testRuleName;
+                    rule.Grouping = RuleGroupName;
+                    rule.Action = NET_FW_ACTION_BLOCK;
+                    rule.Direction = NET_FW_RULE_DIR_OUT;
+                    rule.Protocol = NET_FW_IP_PROTOCOL_TCP;
+                    rule.RemoteAddresses = $"{testIp}/255.255.255.255";
+                    rule.Profiles = 7;
+                    rule.Enabled = true;
+                    _policy.Rules.Add(rule);
+                }
+                catch { }
+            });
+
+            await Task.Delay(300);
+
+            // Connection should now fail/timeout
+            bool stillReachable = await TryConnectAsync(testIp, testPort, msTimeout: 2000);
+
+            // Remove rule
+            await _dispatcher.InvokeAsync(() => { try { _policy.Rules.Remove(testRuleName); } catch { } });
+
+            if (!stillReachable)
+                lines.Add($"✓ Live block test: {testIp} was blocked by the test rule ✅");
+            else
+            {
+                lines.Add($"❌ Live block test: {testIp} was NOT blocked — Windows Firewall may not be functioning correctly.");
+                ok = false;
+            }
+        }
+
+        return (ok, lines);
+    }
+
+    private static async Task<bool> TryConnectAsync(string host, int port, int msTimeout)
+    {
+        using var cts = new CancellationTokenSource(msTimeout);
+        try
+        {
+            using var tcp = new TcpClient();
+            await tcp.ConnectAsync(IPAddress.Parse(host), port, cts.Token);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 }

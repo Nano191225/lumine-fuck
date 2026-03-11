@@ -364,7 +364,17 @@
                             Margin="0,0,8,0"/>
                     <Button Content="{DynamicResource Str_Btn_Language}"
                             Style="{StaticResource SecondaryButton}"
-                            Command="{Binding ToggleLanguageCommand}"/>
+                            Command="{Binding ToggleLanguageCommand}"
+                            Margin="0,0,8,0"/>
+                    <Button Command="{Binding TestFirewallCommand}"
+                            Style="{StaticResource SecondaryButton}">
+                        <Button.Content>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="{DynamicResource Str_Btn_TestFW}"/>
+                                <TextBlock Text=" ⏳" Visibility="{Binding IsFirewallTesting, Converter={StaticResource BoolToVisibility}}"/>
+                            </StackPanel>
+                        </Button.Content>
+                    </Button>
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">

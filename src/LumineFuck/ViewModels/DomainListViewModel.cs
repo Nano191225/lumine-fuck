@@ -68,6 +68,39 @@ public partial class DomainListViewModel : ObservableObject
         }
     }
 
+    public bool BlockMsRelay
+    {
+        get => _blockList.BlockMsRelay;
+        set
+        {
+            if (_blockList.BlockMsRelay == value) return;
+            _blockList.BlockMsRelay = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public int RelayWatchSeconds
+    {
+        get => _blockList.RelayWatchSeconds;
+        set
+        {
+            if (_blockList.RelayWatchSeconds == value) return;
+            _blockList.RelayWatchSeconds = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public int RelayFreqThreshold
+    {
+        get => _blockList.RelayFreqThreshold;
+        set
+        {
+            if (_blockList.RelayFreqThreshold == value) return;
+            _blockList.RelayFreqThreshold = value;
+            OnPropertyChanged();
+        }
+    }
+
     public DomainListViewModel(BlockList blockList)
     {
         _blockList = blockList;

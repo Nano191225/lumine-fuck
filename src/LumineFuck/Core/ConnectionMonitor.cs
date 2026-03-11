@@ -81,6 +81,39 @@ public sealed class ConnectionMonitor : IDisposable
     private int _tcpDetected;
     private int _udpDetected;
 
+    // --- Post-block MS relay watch ---
+    // Activated after a non-Microsoft IP is blocked.
+    // If any IP sends high-frequency traffic during the watch window, it is
+    // reported via OnSuspiciousRelayDetected for the caller to evaluate and block.
+    private volatile bool _postBlockWatchActive = false;
+    private DateTime _postBlockWatchExpiry;
+    private int _currentRelayFreqThreshold = 10; // configurable via NotifyAttackerBlocked
+    private const long RelayWindowMs = 500;
+    private readonly ConcurrentDictionary<string, RelayCounter> _relayCounters = new();
+
+    private sealed class RelayCounter
+    {
+        public int Count;
+        public long WindowStartTick = Environment.TickCount64;
+        // 1 = already reported this window, 0 = not yet
+        public int Reported;
+    }
+
+    /// <summary>Fired when a high-frequency relay IP is detected during post-block watch.</summary>
+    public event Action<IPAddress>? OnSuspiciousRelayDetected;
+
+    /// <summary>
+    /// Call this whenever a non-Microsoft attacker IP is blocked.
+    /// Activates a watch window during which high-frequency IPs are reported.
+    /// </summary>
+    public void NotifyAttackerBlocked(int watchSeconds = 30, int freqThreshold = 10)
+    {
+        _currentRelayFreqThreshold = Math.Max(1, freqThreshold);
+        _postBlockWatchExpiry = DateTime.UtcNow.AddSeconds(Math.Max(1, watchSeconds));
+        _postBlockWatchActive = true;
+        _relayCounters.Clear();
+    }
+
     public ChannelReader<(IPAddress, ushort)> NewIpReader => _newIpChannel.Reader;
 
     public bool IsRunning => _tcpPollingTask is not null && !_tcpPollingTask.IsCompleted;
@@ -358,6 +391,29 @@ public sealed class ConnectionMonitor : IDisposable
             if (!_udpPortToPid.TryGetValue(localPort, out var pid) || !IsMinecraftProcess(pid))
                 return;
 
+            // [DEBUG] Log every packet with a known local port (Minecraft traffic)
+            bool isOutgoing = srcIsLocal;
+            string direction = isOutgoing ? "OUT" : "IN ";
+            ushort remotePort = isOutgoing ? udpPacket.DestinationPort : udpPacket.SourcePort;
+            int payloadLen = udpPacket.PayloadData?.Length ?? 0;
+
+            // Parse STUN packets for ICE/TURN credentials (plaintext before DTLS)
+            if (payloadLen >= 20 && udpPacket.PayloadData != null)
+                TryLogStunAttributes(udpPacket.PayloadData, remoteIp, remotePort, direction);
+
+            // Post-block relay watch: detect high-frequency traffic from any IP
+            if (_postBlockWatchActive)
+            {
+                if (DateTime.UtcNow > _postBlockWatchExpiry)
+                {
+                    _postBlockWatchActive = false;
+                }
+                else
+                {
+                    CheckRelayFrequency(remoteIp);
+                }
+            }
+
             var remoteStr = remoteIp.ToString();
             if (_seenIps.TryAdd(remoteStr, 0))
             {
@@ -449,5 +505,164 @@ public sealed class ConnectionMonitor : IDisposable
         _cts?.Cancel();
         _cts?.Dispose();
         _newIpChannel.Writer.TryComplete();
+    }
+
+    // ===== Post-block relay frequency check =====
+
+    private void CheckRelayFrequency(IPAddress ip)
+    {
+        var ipStr = ip.ToString();
+        var counter = _relayCounters.GetOrAdd(ipStr, _ => new RelayCounter());
+
+        long now = Environment.TickCount64;
+        long windowAge = now - Volatile.Read(ref counter.WindowStartTick);
+
+        if (windowAge > RelayWindowMs)
+        {
+            // Window is complete — evaluate the final count before resetting
+            int finalCount = Volatile.Read(ref counter.Count);
+            // Fire exactly once per completed window (CAS ensures only one thread reports)
+            if (finalCount >= _currentRelayFreqThreshold &&
+                Interlocked.CompareExchange(ref counter.Reported, 1, 0) == 0)
+            {
+                OnLog?.Invoke($"[Watch] ⚠ High-freq relay: {ip} — {finalCount} pkts / {RelayWindowMs}ms (threshold={_currentRelayFreqThreshold})");
+                OnSuspiciousRelayDetected?.Invoke(ip);
+            }
+
+            // Start a new window
+            Volatile.Write(ref counter.WindowStartTick, now);
+            Interlocked.Exchange(ref counter.Count, 1);
+            Interlocked.Exchange(ref counter.Reported, 0);
+        }
+        else
+        {
+            Interlocked.Increment(ref counter.Count);
+        }
+    }
+
+    // ===== STUN Packet Parser =====
+
+    private static readonly Dictionary<ushort, string> StunMessageTypes = new()
+    {
+        [0x0001] = "Binding Request",
+        [0x0101] = "Binding Success",
+        [0x0111] = "Binding Error",
+        [0x0003] = "Allocate Request",
+        [0x0103] = "Allocate Success",
+        [0x0004] = "Refresh Request",
+        [0x0104] = "Refresh Success",
+        [0x0006] = "Send Indication",
+        [0x0007] = "Data Indication",
+        [0x0008] = "CreatePermission Request",
+        [0x0108] = "CreatePermission Success",
+        [0x0009] = "ChannelBind Request",
+        [0x0109] = "ChannelBind Success",
+    };
+
+    private const uint StunMagicCookie = 0x2112A442;
+
+    private const ushort AttrUsername = 0x0006;
+    private const ushort AttrMessageIntegrity = 0x0008;
+    private const ushort AttrXorMappedAddress  = 0x0020;
+    private const ushort AttrXorPeerAddress    = 0x0012;
+    private const ushort AttrXorRelayedAddress = 0x0016;
+    private const ushort AttrChannelNumber = 0x000C;
+    private const ushort AttrData = 0x000D;
+    private const ushort AttrRealm = 0x0014;
+    private const ushort AttrNonce = 0x0015;
+    private const ushort AttrSoftware = 0x8022;
+
+    private void TryLogStunAttributes(byte[] payload, IPAddress remoteIp, ushort remotePort, string direction)
+    {
+        try
+        {
+            if (payload.Length < 20) return;
+
+            uint magic = (uint)((payload[4] << 24) | (payload[5] << 16) | (payload[6] << 8) | payload[7]);
+            if (magic != StunMagicCookie) return;
+
+            ushort msgType = (ushort)((payload[0] << 8) | payload[1]);
+            ushort msgLen  = (ushort)((payload[2] << 8) | payload[3]);
+            if (20 + msgLen > payload.Length) return;
+
+            string typeName = StunMessageTypes.TryGetValue(msgType, out var t) ? t : $"0x{msgType:X4}";
+            string txId = BitConverter.ToString(payload, 8, 12).Replace("-", "");
+            var attrs = new System.Text.StringBuilder();
+
+            int offset = 20;
+            while (offset + 4 <= 20 + msgLen)
+            {
+                ushort attrType = (ushort)((payload[offset] << 8) | payload[offset + 1]);
+                ushort attrLen  = (ushort)((payload[offset + 2] << 8) | payload[offset + 3]);
+                offset += 4;
+                if (offset + attrLen > payload.Length) break;
+
+                switch (attrType)
+                {
+                    case AttrUsername:
+                        string username = System.Text.Encoding.UTF8.GetString(payload, offset, attrLen);
+                        attrs.Append($" USERNAME={username}");
+                        if (attrLen > 20 && !username.Contains(':'))
+                        {
+                            try
+                            {
+                                byte[] token = Convert.FromBase64String(username);
+                                string hex = BitConverter.ToString(token, 0, Math.Min(token.Length, 32)).Replace("-", " ");
+                                attrs.Append($" [MS-TOKEN({token.Length}B): {hex}]");
+                            }
+                            catch { }
+                        }
+                        break;
+
+                    case AttrRealm:
+                        attrs.Append($" REALM={System.Text.Encoding.UTF8.GetString(payload, offset, attrLen)}");
+                        break;
+
+                    case AttrNonce:
+                        attrs.Append($" NONCE={System.Text.Encoding.UTF8.GetString(payload, offset, attrLen)}");
+                        break;
+
+                    case AttrSoftware:
+                        attrs.Append($" SOFTWARE={System.Text.Encoding.UTF8.GetString(payload, offset, attrLen)}");
+                        break;
+
+                    case AttrChannelNumber when attrLen >= 2:
+                        attrs.Append($" CHANNEL=0x{(ushort)((payload[offset] << 8) | payload[offset + 1]):X4}");
+                        break;
+
+                    case AttrXorPeerAddress    when attrLen >= 8:
+                    case AttrXorMappedAddress  when attrLen >= 8:
+                    case AttrXorRelayedAddress when attrLen >= 8:
+                        if (payload[offset + 1] == 0x01)
+                        {
+                            ushort xPort = (ushort)(((payload[offset + 2] << 8) | payload[offset + 3]) ^ 0x2112);
+                            uint xIp = (uint)(((payload[offset + 4] << 24) | (payload[offset + 5] << 16)
+                                             | (payload[offset + 6] << 8)  | payload[offset + 7]) ^ StunMagicCookie);
+                            var addr = new IPAddress(new byte[]
+                                { (byte)(xIp >> 24), (byte)(xIp >> 16), (byte)(xIp >> 8), (byte)xIp });
+                            string label = attrType switch
+                            {
+                                AttrXorPeerAddress    => "XOR-PEER",
+                                AttrXorRelayedAddress => "XOR-RELAYED",
+                                _                     => "XOR-MAPPED"
+                            };
+                            attrs.Append($" {label}={addr}:{xPort}");
+                        }
+                        break;
+
+                    case AttrMessageIntegrity:
+                        attrs.Append(" [HMAC-SHA1]");
+                        break;
+
+                    case AttrData:
+                        attrs.Append($" DATA({attrLen}B)");
+                        break;
+                }
+
+                offset += (attrLen + 3) & ~3;
+            }
+
+        }
+        catch { }
     }
 }

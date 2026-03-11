@@ -42,6 +42,12 @@
     <s:String x:Key="Str_Cfg_Unblock_Desc">N秒後にファイアウォールルールを自動削除します。0 = 解除しない。</s:String>
     <s:String x:Key="Str_Cfg_Delay_Title">ブロック遅延（秒）</s:String>
     <s:String x:Key="Str_Cfg_Delay_Desc">検出後N秒待ってからブロックします。0 = 即座にブロック。</s:String>
+    <s:String x:Key="Str_Cfg_BlockMsRelay_Title">攻撃後に MS リレーをブロック</s:String>
+    <s:String x:Key="Str_Cfg_BlockMsRelay_Desc">攻撃者をブロックした後、Microsoft TURN リレーサーバーを監視し、高頻度トラフィックが検出された場合は自動ブロックします。</s:String>
+    <s:String x:Key="Str_Cfg_RelayWatch_Title">リレー監視ウィンドウ（秒）</s:String>
+    <s:String x:Key="Str_Cfg_RelayWatch_Desc">攻撃者ブロック後に不審な MS リレートラフィックを監視する秒数。</s:String>
+    <s:String x:Key="Str_Cfg_RelayFreq_Title">リレー頻度しきい値（pkt/0.5s）</s:String>
+    <s:String x:Key="Str_Cfg_RelayFreq_Desc">500msのウィンドウ内でこの値を超えたパケット数の MS リレー IP を不審とみなします。</s:String>
 
     <!-- Buttons -->
     <s:String x:Key="Str_Btn_Config">⚙️ 設定</s:String>
@@ -49,5 +55,6 @@
     <s:String x:Key="Str_Btn_ClearLog">🧹 ログ削除</s:String>
     <s:String x:Key="Str_Btn_Language">🌐 言語</s:String>
     <s:String x:Key="Str_Btn_CheckUpdates">🔄 更新確認</s:String>
+    <s:String x:Key="Str_Btn_TestFW">🧪 FWテスト</s:String>
 
 </ResourceDictionary>

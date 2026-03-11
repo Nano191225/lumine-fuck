@@ -42,6 +42,12 @@
     <s:String x:Key="Str_Cfg_Unblock_Desc">Automatically remove firewall rule after N seconds. 0 = never unblock.</s:String>
     <s:String x:Key="Str_Cfg_Delay_Title">Block delay (seconds)</s:String>
     <s:String x:Key="Str_Cfg_Delay_Desc">Wait N seconds after detection before blocking. 0 = block immediately.</s:String>
+    <s:String x:Key="Str_Cfg_BlockMsRelay_Title">Block MS relay after attack</s:String>
+    <s:String x:Key="Str_Cfg_BlockMsRelay_Desc">When an attacker is blocked, monitor Microsoft TURN relay servers and auto-block any that carry high-frequency traffic from that session.</s:String>
+    <s:String x:Key="Str_Cfg_RelayWatch_Title">Relay watch window (seconds)</s:String>
+    <s:String x:Key="Str_Cfg_RelayWatch_Desc">How long to watch for suspicious Microsoft relay traffic after blocking an attacker.</s:String>
+    <s:String x:Key="Str_Cfg_RelayFreq_Title">Relay frequency threshold (pkt/0.5s)</s:String>
+    <s:String x:Key="Str_Cfg_RelayFreq_Desc">Packets per 500ms window above which a Microsoft relay IP is considered suspicious.</s:String>
 
     <!-- Buttons -->
     <s:String x:Key="Str_Btn_Config">⚙️ Config</s:String>
@@ -49,5 +55,6 @@
     <s:String x:Key="Str_Btn_ClearLog">🧹 Clear Log</s:String>
     <s:String x:Key="Str_Btn_Language">🌐 Language</s:String>
     <s:String x:Key="Str_Btn_CheckUpdates">🔄 Check Updates</s:String>
+    <s:String x:Key="Str_Btn_TestFW">🧪 Test FW</s:String>
 
 </ResourceDictionary>
