@@ -48,6 +48,8 @@
     <s:String x:Key="Str_Cfg_RelayWatch_Desc">How long to watch for suspicious Microsoft relay traffic after blocking an attacker.</s:String>
     <s:String x:Key="Str_Cfg_RelayFreq_Title">Relay frequency threshold (pkt/0.5s)</s:String>
     <s:String x:Key="Str_Cfg_RelayFreq_Desc">Packets per 500ms window above which a Microsoft relay IP is considered suspicious.</s:String>
+    <s:String x:Key="Str_Cfg_RelayMultiplier_Title">Relay multiplier threshold (×)</s:String>
+    <s:String x:Key="Str_Cfg_RelayMultiplier_Desc">Current window packet count must be at least this many times greater than the previous window to confirm a relay as suspicious. 1.5 means a 50% increase. Requires frequency threshold to also be met.</s:String>
 
     <!-- Buttons -->
     <s:String x:Key="Str_Btn_Config">⚙️ Config</s:String>

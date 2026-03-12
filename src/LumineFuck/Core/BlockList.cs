@@ -158,7 +158,7 @@ public sealed class BlockList
 
     private int _relayFreqThreshold = 10;
     /// <summary>
-    /// Packets-per-2-seconds threshold above which a Microsoft relay IP is considered suspicious.
+    /// Packets-per-500ms threshold above which a Microsoft relay IP is considered suspicious.
     /// </summary>
     public int RelayFreqThreshold
     {
@@ -172,6 +172,28 @@ public sealed class BlockList
                 Save();
             }
             OnLog?.Invoke($"Relay freq threshold: {value} pkt/0.5s");
+            OnChanged?.Invoke();
+        }
+    }
+
+    private double _relayMultiplierThreshold = 1.5;
+    /// <summary>
+    /// When detecting a suspicious MS relay, the current window packet count must be at least
+    /// this many times larger than the previous window count. Default 1.5 (50% increase).
+    /// </summary>
+    public double RelayMultiplierThreshold
+    {
+        get { lock (_lock) return _relayMultiplierThreshold; }
+        set
+        {
+            lock (_lock)
+            {
+                double clamped = Math.Max(1.0, value);
+                if (_relayMultiplierThreshold == clamped) return;
+                _relayMultiplierThreshold = clamped;
+                Save();
+            }
+            OnLog?.Invoke($"Relay multiplier: {value:F2}x");
             OnChanged?.Invoke();
         }
     }
@@ -229,6 +251,7 @@ public sealed class BlockList
                         _blockMsRelay = data.BlockMsRelay;
                         _relayWatchSeconds = data.RelayWatchSeconds > 0 ? data.RelayWatchSeconds : 30;
                         _relayFreqThreshold = data.RelayFreqThreshold > 0 ? data.RelayFreqThreshold : 10;
+                        _relayMultiplierThreshold = data.RelayMultiplierThreshold >= 1.0 ? data.RelayMultiplierThreshold : 1.5;
                         RebuildIpRanges();
                         OnLog?.Invoke($"Loaded {_domains.Count} domain(s) + {_ips.Count} IP rule(s) from config. UnblockAfter={_unblockAfterSeconds}s");
                         return;
@@ -409,7 +432,7 @@ public sealed class BlockList
         // lock held by caller
         try
         {
-            var data = new BlockListData { Domains = _domains, Ips = _ips, UnblockAfterSeconds = _unblockAfterSeconds, BlockDelaySeconds = _blockDelaySeconds, ShowNotifications = _showNotifications, BlockVpn = _blockVpn, BlockMsRelay = _blockMsRelay, RelayWatchSeconds = _relayWatchSeconds, RelayFreqThreshold = _relayFreqThreshold };
+            var data = new BlockListData { Domains = _domains, Ips = _ips, UnblockAfterSeconds = _unblockAfterSeconds, BlockDelaySeconds = _blockDelaySeconds, ShowNotifications = _showNotifications, BlockVpn = _blockVpn, BlockMsRelay = _blockMsRelay, RelayWatchSeconds = _relayWatchSeconds, RelayFreqThreshold = _relayFreqThreshold, RelayMultiplierThreshold = _relayMultiplierThreshold };
             var json = JsonSerializer.Serialize(data, JsonOptions);
             File.WriteAllText(_filePath, json);
         }
@@ -450,6 +473,7 @@ public sealed class BlockList
         public bool BlockMsRelay { get; set; } = true;
         public int RelayWatchSeconds { get; set; } = 30;
         public int RelayFreqThreshold { get; set; } = 10;
+        public double RelayMultiplierThreshold { get; set; } = 1.5;
     }
 
     // --- IP Range helper ---

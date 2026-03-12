@@ -101,6 +101,17 @@ public partial class DomainListViewModel : ObservableObject
         }
     }
 
+    public double RelayMultiplierThreshold
+    {
+        get => _blockList.RelayMultiplierThreshold;
+        set
+        {
+            if (_blockList.RelayMultiplierThreshold == value) return;
+            _blockList.RelayMultiplierThreshold = value;
+            OnPropertyChanged();
+        }
+    }
+
     public DomainListViewModel(BlockList blockList)
     {
         _blockList = blockList;

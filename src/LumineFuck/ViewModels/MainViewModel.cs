@@ -484,7 +484,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // (Microsoft IPs are whitelisted and won't trigger spurious watches)
         bool isMsBlock = matchedRule.StartsWith("MS Relay", StringComparison.Ordinal);
         if (!isMsBlock && _blockList.BlockMsRelay)
-            _connectionMonitor.NotifyAttackerBlocked(_blockList.RelayWatchSeconds, _blockList.RelayFreqThreshold);
+            _connectionMonitor.NotifyAttackerBlocked(_blockList.RelayWatchSeconds, _blockList.RelayFreqThreshold, _blockList.RelayMultiplierThreshold);
 
         if (_blockList.ShowNotifications)
         {
@@ -544,7 +544,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     /// Called when ConnectionMonitor detects a high-frequency IP during post-block watch.
     /// If the IP belongs to Microsoft (TURN relay), blocks it immediately.
     /// </summary>
-    private async void OnSuspiciousRelayDetected(IPAddress ip)
+    private async void OnSuspiciousRelayDetected(IPAddress ip, int prevCount, int currentCount)
     {
         if (!_blockList.BlockMsRelay) return;
         if (_firewallManager.IsBlocked(ip)) return;
@@ -552,15 +552,18 @@ public partial class MainViewModel : ObservableObject, IDisposable
         IpApiResult? apiResult = null;
         try { apiResult = await _ispLookupService.LookupAsync(ip); } catch { }
 
+        double ratio = prevCount > 0 ? (double)currentCount / prevCount : double.NaN;
+        string ratioStr = double.IsNaN(ratio) ? "(no baseline)" : $"{ratio:F2}x";
+
         if (apiResult?.IsMicrosoft == true)
         {
             var ispName = apiResult.Isp ?? apiResult.Org ?? "Microsoft/Azure";
-            AddLog($"🚫 Blocking MS relay {ip} [{ispName}] — high-freq traffic detected after attacker block");
+            AddLog($"🚫 Blocking MS relay {ip} [{ispName}] — before: {prevCount} pkt, after: {currentCount} pkt, multiplier: {ratioStr}");
             BlockAndRecord(ip, null, "MS Relay (post-block)", skipDelay: true);
         }
         else
         {
-            AddLog($"[Watch] High-freq IP {ip} is not Microsoft ({apiResult?.Isp ?? "?"}) — skipping auto-block");
+            AddLog($"[Watch] High-freq IP {ip} is not Microsoft ({apiResult?.Isp ?? "?"}) — skipping auto-block (before: {prevCount} pkt, after: {currentCount} pkt, {ratioStr})");
         }
     }
 

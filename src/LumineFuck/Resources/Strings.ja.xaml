@@ -48,6 +48,8 @@
     <s:String x:Key="Str_Cfg_RelayWatch_Desc">攻撃者ブロック後に不審な MS リレートラフィックを監視する秒数。</s:String>
     <s:String x:Key="Str_Cfg_RelayFreq_Title">リレー頻度しきい値（pkt/0.5s）</s:String>
     <s:String x:Key="Str_Cfg_RelayFreq_Desc">500msのウィンドウ内でこの値を超えたパケット数の MS リレー IP を不審とみなします。</s:String>
+    <s:String x:Key="Str_Cfg_RelayMultiplier_Title">リレー倍率しきい値（×）</s:String>
+    <s:String x:Key="Str_Cfg_RelayMultiplier_Desc">現在のウィンドウのパケット数が前のウィンドウの何倍以上であれば不審とみなすかを指定します。1.5 は 50% 増加を意味します。頻度しきい値も同時に満たす必要があります。</s:String>
 
     <!-- Buttons -->
     <s:String x:Key="Str_Btn_Config">⚙️ 設定</s:String>

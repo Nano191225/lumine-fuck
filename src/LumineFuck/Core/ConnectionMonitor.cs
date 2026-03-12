@@ -88,30 +88,34 @@ public sealed class ConnectionMonitor : IDisposable
     private volatile bool _postBlockWatchActive = false;
     private DateTime _postBlockWatchExpiry;
     private int _currentRelayFreqThreshold = 10; // configurable via NotifyAttackerBlocked
+    private double _currentRelayMultiplier = 1.5;  // configurable via NotifyAttackerBlocked
     private const long RelayWindowMs = 500;
     private readonly ConcurrentDictionary<string, RelayCounter> _relayCounters = new();
 
     private sealed class RelayCounter
     {
         public int Count;
+        public int PrevCount; // count from the previous completed window
         public long WindowStartTick = Environment.TickCount64;
         // 1 = already reported this window, 0 = not yet
         public int Reported;
     }
 
     /// <summary>Fired when a high-frequency relay IP is detected during post-block watch.</summary>
-    public event Action<IPAddress>? OnSuspiciousRelayDetected;
+    /// <remarks>Parameters: (ip, prevWindowCount, currentWindowCount)</remarks>
+    public event Action<IPAddress, int, int>? OnSuspiciousRelayDetected;
 
     /// <summary>
     /// Call this whenever a non-Microsoft attacker IP is blocked.
     /// Activates a watch window during which high-frequency IPs are reported.
     /// </summary>
-    public void NotifyAttackerBlocked(int watchSeconds = 30, int freqThreshold = 10)
+    public void NotifyAttackerBlocked(int watchSeconds = 30, int freqThreshold = 10, double multiplier = 1.5)
     {
         _currentRelayFreqThreshold = Math.Max(1, freqThreshold);
+        _currentRelayMultiplier = Math.Max(1.0, multiplier);
         _postBlockWatchExpiry = DateTime.UtcNow.AddSeconds(Math.Max(1, watchSeconds));
         _postBlockWatchActive = true;
-        _relayCounters.Clear();
+        // Do NOT clear _relayCounters: existing window counts serve as the pre-block baseline
     }
 
     public ChannelReader<(IPAddress, ushort)> NewIpReader => _newIpChannel.Reader;
@@ -401,18 +405,12 @@ public sealed class ConnectionMonitor : IDisposable
             if (payloadLen >= 20 && udpPacket.PayloadData != null)
                 TryLogStunAttributes(udpPacket.PayloadData, remoteIp, remotePort, direction);
 
-            // Post-block relay watch: detect high-frequency traffic from any IP
-            if (_postBlockWatchActive)
-            {
-                if (DateTime.UtcNow > _postBlockWatchExpiry)
-                {
-                    _postBlockWatchActive = false;
-                }
-                else
-                {
-                    CheckRelayFrequency(remoteIp);
-                }
-            }
+            // Always count packets per IP (counts serve as baseline for the 1.5x check).
+            // Expire the watch window when due.
+            if (_postBlockWatchActive && DateTime.UtcNow > _postBlockWatchExpiry)
+                _postBlockWatchActive = false;
+
+            CheckRelayFrequency(remoteIp);
 
             var remoteStr = remoteIp.ToString();
             if (_seenIps.TryAdd(remoteStr, 0))
@@ -521,13 +519,20 @@ public sealed class ConnectionMonitor : IDisposable
         {
             // Window is complete — evaluate the final count before resetting
             int finalCount = Volatile.Read(ref counter.Count);
-            // Fire exactly once per completed window (CAS ensures only one thread reports)
-            if (finalCount >= _currentRelayFreqThreshold &&
+            int prevCount  = Volatile.Read(ref counter.PrevCount);
+
+            // During watch period: fire if count meets threshold AND has grown by the multiplier
+            // (prevCount == 0 means no baseline yet — skip multiplier check for first window)
+            if (_postBlockWatchActive &&
+                finalCount >= _currentRelayFreqThreshold &&
+                (prevCount == 0 || finalCount >= prevCount * _currentRelayMultiplier) &&
                 Interlocked.CompareExchange(ref counter.Reported, 1, 0) == 0)
             {
-                OnLog?.Invoke($"[Watch] ⚠ High-freq relay: {ip} — {finalCount} pkts / {RelayWindowMs}ms (threshold={_currentRelayFreqThreshold})");
-                OnSuspiciousRelayDetected?.Invoke(ip);
+                OnSuspiciousRelayDetected?.Invoke(ip, prevCount, finalCount);
             }
+
+            // Store current count as baseline for the next window
+            Volatile.Write(ref counter.PrevCount, finalCount);
 
             // Start a new window
             Volatile.Write(ref counter.WindowStartTick, now);
