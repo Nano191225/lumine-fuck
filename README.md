@@ -1,5 +1,10 @@
 # LumineFuck Firewall
 
+[![GitHub Release](https://img.shields.io/github/v/release/Nano191225/lumine-fuck?include_prereleases&style=flat-square&color=89b4fa)](https://github.com/Nano191225/lumine-fuck/releases/latest)
+[![GitHub Downloads](https://img.shields.io/github/downloads/Nano191225/lumine-fuck/total?style=flat-square&color=a6e3a1)](https://github.com/Nano191225/lumine-fuck/releases)
+[![License](https://img.shields.io/badge/license-MIT-cba6f7?style=flat-square)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Windows-blue?style=flat-square&color=89dceb)](https://github.com/Nano191225/lumine-fuck)
+
 > [!WARNING]
 > **This software does not completely block communications via Lumine Proxy.**
 > For better world security, consider using an anti-cheat with Lumine Proxy countermeasures alongside this tool.
